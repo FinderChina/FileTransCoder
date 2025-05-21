@@ -148,4 +148,4 @@ g++ Txt.cpp -o Txt \
     /mingw64/lib/libwxscintilla-3.2.a
     
 g++ TransCoder.cpp -o TransCoder $(wx-config --cxxflags --libs) -lwx_mswu_stc-3.2 -lwxscintilla-3.2 -lcrypto 
-g++ TransCoder.cpp -o TransCoder $(wx-config --static --cxxflags --libs) -lwx_mswu_stc-3.2 -lwxscintilla-3.2 -lcrypto 
+g++ TransCoder.cpp -o TransCoder $(wx-config --static --cxxflags --libs) -lwx_mswu_stc-3.2 -lwxscintilla-3.2 -lcrypto
