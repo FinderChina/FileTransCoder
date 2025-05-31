@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<!--
+https://github.com/aadsm/jschardet
+https://cdnjs.cloudflare.com/ajax/libs/jschardet/3.2.0/jschardet.min.js
+
+https://github.com/ashtuchkin/iconv-lite
+https://unpkg.com/iconv-lite-umd@0.6.10/lib/iconv-lite-umd.js
+https://unpkg.com/iconv-lite-umd@0.6.10/lib/iconv-lite-umd.js.map
+
+https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js
+
+https://fontawesome.com/v5/search?o=r&ic=free&s=solid
+-->
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本编码工具</title>
+    <link rel="stylesheet" href="./fontawesome-free-5.15.4-web/css/all.min.css">
+    <script type="text/javascript" src="./js/crypto-js.min_4.2.0.js"></script>
+    <script type="text/javascript" src="./js/jschardet.min_3.2.0.js"></script>
+    <!--
+    <script src="./js/iconv-lite-umd_0.6.10.js"></script>  -->
+    <!--
+    <script type="module">
+      import iconvLite from './js/iconv-lite-umd_0.6.10.js';
+      // 使用 iconv
+      console.log("iconvLite", iconvLite);
+    </script>  -->
+    <!--  -->
+    <script type="text/javascript" src="./js/require.min_2.3.6.js"></script>
+    <script>
+      var iconv;
+      require(['./js/iconv-lite-umd_0.6.10.js'], function(iconvLite) {
+        //console.log(iconvLite);
+        iconv = iconvLite;
+        
+        // 从 JavaScript 字符串转换为编码的 Buffer 对象
+        //const buf = iconv.encode("示例输入字符串", 'win1251');
+        // 检查是否支持某种编码
+        //const isSupported = iconv.encodingExists("us-ascii"); // 输出:true 或 false
+      });
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #mainContent {
+            margin-top: 20px;
+        }
+        #editorModal, #gotoLineModal, #encodingModal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            height: 80%;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #05c1f1;
+        }
+        .modal-tabs {
+            display: flex;
+        }
+        .modal-tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+            color: #05c1f1;
+            font-weight: bold;
+        }
+        .modal-tab.active {
+            border-color: #05c1f1;
+            background-color: #05c1f1;
+            color: #fff;
+            font-weight: bold;
+        }
+        .modal-tab-content {
+            display: none;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+        .modal-tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+        .top-button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .left-button-group, .right-button-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 1px;
+        }
+        #editorContainer {
+            display: flex;
+            flex-grow: 1;
+            height: 70%;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        #lineNumbers {
+            width: 40px;
+            background-color: #f5f5f5;
+            padding: 10px 5px;
+            overflow-y: hidden;
+            text-align: right;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            border-right: 1px solid #ddd;
+            user-select: none;
+        }
+        #textAreaContainer {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        #textEditor {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            resize: none;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            tab-size: 4;
+            white-space: nowrap;
+            overflow-x: auto;
+            // border: none;
+        }
+        .button-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+            gap: 10px;
+        }
+        button, .file-input-wrapper {
+            padding: 8px 16px;
+            cursor: pointer;
+            height: 36px;
+            box-sizing: border-box;
+            border: 0px solid #05c1f1;
+            border-radius: 4px;
+            background-color: #05c1f1;
+            height: 30px;
+            color: #fff;
+        }
+        button:hover, .file-input-wrapper:hover {
+            background-color: #3bd7ff;
+        }
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            overflow: hidden;
+        }
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .file-input-label {
+            display: inline-block;
+            cursor: pointer;
+        }
+        #initialCode {
+            width: 100%;
+            height: 200px;
+            margin-top: 10px;
+            font-family: monospace;
+        }
+        #fileInfo {
+            margin: 10px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .small-modal {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 300px;
+        }
+        #gotoLineInput, #encodingSelect {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+        #encodingSelect {
+            height: 120px;
+        }
+        .status-message {
+            color: #d9534f;
+            margin-top: 5px;
+            font-size: 13px;
+        }
+        .config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px;
+        }
+        .config-item {
+            display: flex;
+            align-items: center;
+        }
+        .config-item label {
+            width: 150px;
+            margin-right: 10px;
+        }
+        .config-item input[type="number"],
+        .config-item input[type="text"] {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #05c1f1;
+            border-radius: 4px;
+        }
+        .config-item input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        
+        .about-content {
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .about-content h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .about-content p {
+            margin: 10px 0;
+        }
+        .version-info {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>文本编码工具</h1>
+    
+    <button id="encodeBtn">编码</button>
+    
+    <div id="mainContent">
+        <h3>初始编码:</h3>
+        <textarea id="initialCode" readonly></textarea>
+    </div>
+
+    <!-- 编辑窗口 -->
+    <div id="editorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-tabs">
+                    <div class="modal-tab active" data-tab="editor">文本编辑</div>
+                    <div class="modal-tab" data-tab="config">通用配置</div>
+                    <div class="modal-tab" data-tab="about">关于</div>
+                </div>
+                <div class="right-button-group">
+                    <button id="confirmBtn" class="fas fa-check-circle" title="确认"/>
+                    <button id="cancelBtn" class="fas fa-times-circle" title="取消"/>
+                </div>
+            </div>
+            
+            <!-- 文本编辑选项卡 -->
+            <div id="editorTab" class="modal-tab-content active">
+            <div class="top-button-container">
+                <div class="left-button-group">
+                    <div class="file-input-wrapper">
+                        <span class="file-input-label fas fa-folder-open" title="打开"></span>
+                        <input type="file" id="fileInput" accept=".txt,.text,.csv,.json,.xml,.html,.js,.css,.md">
+                    </div>
+                    <button id="encodingBtn" class="fas fa-laptop-code" title="文件编码"/>
+                    <button id="gotoLineBtn" class="fas fa-sort-amount-down-alt" title="跳转到行"/>
+                    <button id="viewHashBtn" class="fas fa-water" title="查看哈希"/>
+                </div>
+            </div>
+            
+            <div id="editorContainer">
+                <div id="lineNumbers"></div>
+                <div id="textAreaContainer">
+                    <textarea id="textEditor" spellcheck="false"></textarea>
+                </div>
+            </div>
+            
+            <div id="fileInfo"></div>
+            <div id="statusMessage" class="status-message"></div>
+        </div>
+            
+            <!-- 通用配置选项卡 -->
+            <div id="configTab" class="modal-tab-content">
+                <div class="config-form">
+                    <div class="config-item">
+                        <label for="loopCount">循环次数:</label>
+                        <input type="number" id="loopCount" min="1" max="200" value="1">
+                    </div>
+                    <div class="config-item">
+                        <label for="includeFileName">文件名称参与编码:</label>
+                        <input type="checkbox" id="includeFileName">
+                    </div>
+                    <div class="config-item" id="fileNamePrefixContainer" style="display: none;">
+                        <label for="fileNamePrefix">文件名前缀:</label>
+                        <input type="text" id="fileNamePrefix" placeholder="可选">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 关于选项卡 -->
+            <div id="aboutTab" class="modal-tab-content">
+                <div class="about-content">
+                    <h3>文本编码工具</h3>
+                    <p>这是一个多功能文本编码处理工具，支持多种编码格式的文件编辑和转换。</p>
+                    
+                    <h4>主要功能：</h4>
+                    <ul>
+                        <li>支持多种文本编码格式（UTF-8, GBK, GB2312等）</li>
+                        <li>自动检测文件编码</li>
+                        <li>支持大文件编辑</li>
+                        <li>可配置的编码处理选项</li>
+                        <li>行号显示和跳转功能</li>
+                    </ul>
+                    
+                    <div class="version-info">
+                        <p>版本: 1.1.0</p>
+                        <p>更新日期: 2023-11-15</p>
+                        <p>作者: 文本编码工具团队</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 跳转到行窗口 -->
+    <div id="gotoLineModal">
+        <div class="small-modal">
+            <h3>跳转到行</h3>
+            <input type="number" id="gotoLineInput" placeholder="输入行号" min="1">
+            <div class="button-container">
+                <button id="gotoLineCancelBtn">取消</button>
+                <button id="gotoLineConfirmBtn">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编码选择窗口 -->
+    <div id="encodingModal">
+        <div class="small-modal">
+            <h3>选择文件编码</h3>
+            <select id="encodingSelect" multiple="multiple" ondblclick="handleEncodingDblClick()">
+                <option value="GBK">GBK</option>
+                <option value="UTF-8">UTF-8</option>
+                <option value="UTF-16LE">UTF-16LE</option>
+                <option value="UTF-16BE">UTF-16BE</option>
+                <option value="ISO-8859-1">ISO-8859-1</option>
+            </select>
+            <div class="button-container">
+                <button id="encodingCancelBtn">取消</button>
+                <button id="encodingConfirmBtn">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const encodeBtn = document.getElementById('encodeBtn');
+        const editorModal = document.getElementById('editorModal');
+        const textEditor = document.getElementById('textEditor');
+        const initialCode = document.getElementById('initialCode');
+        const fileInput = document.getElementById('fileInput');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const confirmBtn = document.getElementById('confirmBtn');
+        const lineNumbers = document.getElementById('lineNumbers');
+        const fileInfo = document.getElementById('fileInfo');
+        const statusMessage = document.getElementById('statusMessage');
+        const gotoLineBtn = document.getElementById('gotoLineBtn');
+        const viewHashBtn = document.getElementById('viewHashBtn');
+        const gotoLineModal = document.getElementById('gotoLineModal');
+        const gotoLineInput = document.getElementById('gotoLineInput');
+        const gotoLineCancelBtn = document.getElementById('gotoLineCancelBtn');
+        const gotoLineConfirmBtn = document.getElementById('gotoLineConfirmBtn');
+        const encodingBtn = document.getElementById('encodingBtn');
+        const encodingModal = document.getElementById('encodingModal');
+        const encodingSelect = document.getElementById('encodingSelect');
+        const encodingCancelBtn = document.getElementById('encodingCancelBtn');
+        const encodingConfirmBtn = document.getElementById('encodingConfirmBtn');
+        const loopCount = document.getElementById('loopCount');
+        const includeFileName = document.getElementById('includeFileName');
+        const fileNamePrefix = document.getElementById('fileNamePrefix');
+        const fileNamePrefixContainer = document.getElementById('fileNamePrefixContainer');
+        const editorTab = document.getElementById('editorTab');
+        const configTab = document.getElementById('configTab');
+        const tabs = document.querySelectorAll('.modal-tab');
+
+        let currentFile = null;
+        let detectedEncoding = 'UTF-8';
+        let selectedEncoding = '';
+        let autoDdetectedEncoding = true;
+
+        // 选项卡切换
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // 更新选项卡样式
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // 显示对应的内容
+                const tabId = tab.getAttribute('data-tab');
+                document.querySelectorAll('.modal-tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(`${tabId}Tab`).classList.add('active');
+                
+                // 如果是编辑器选项卡，更新行号
+                if (tabId === 'editor') {
+                    updateLineNumbers();
+                }
+            });
+        });
+
+        // 文件名称参与编码复选框变化
+        includeFileName.addEventListener('change', function() {
+            fileNamePrefixContainer.style.display = this.checked ? 'flex' : 'none';
+        });
+
+        // 打开编辑窗口
+        encodeBtn.addEventListener('click', function() {
+            textEditor.value = initialCode.value;
+            updateLineNumbers();
+            editorModal.style.display = 'block';
+        });
+
+        // 自动加载选择的文件
+        fileInput.addEventListener('change', function(e) {
+            if (fileInput.files.length > 0) {
+                currentFile = fileInput.files[0];
+                fileInfo.innerHTML = `文件: ${currentFile.name} (${formatFileSize(currentFile.size)})`;
+                statusMessage.textContent = '';
+                
+                if(autoDdetectedEncoding){
+                    detectAndLoadFile(currentFile);
+                }else{
+                    loadFileWithEncoding(currentFile, selectedEncoding);
+                }
+                
+                e.target.value = ''; // 重置以允许重复选择
+            }
+        });
+
+        // 检测并加载文件
+        function detectAndLoadFile(file) {
+            const reader = new FileReader();
+            
+            // 先读取为二进制数组以检测编码
+            reader.onload = function(e) {
+                try {
+                    const rawData = new Uint8Array(e.target.result);
+                    const detection = jschardet.detect(rawData);
+                    //console.log(detection); 
+                    detectedEncoding = detection.encoding || 'UTF-8';
+                    
+                    loadFileWithEncoding(file, detectedEncoding);
+                } catch (err) {
+                    statusMessage.textContent = '编码检测失败: ' + err.message;
+                    fileInfo.innerHTML = `文件: ${file.name} (${formatFileSize(file.size)})`;
+                }
+            };
+            
+            reader.onerror = function() {
+                statusMessage.textContent = '文件读取失败';
+            };
+            
+            reader.readAsArrayBuffer(file.slice(0, 1024 * 1024)); // 最多读取前1MB用于编码检测
+        }
+
+        // 使用指定编码加载文件
+        function loadFileWithEncoding(file, encoding) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    if (encoding.toUpperCase() === 'GBK') {
+                        // 使用iconv-lite处理GBK编码
+                        const gbkData = new Uint8Array(e.target.result);
+                        const text = iconv.decode(gbkData, 'gbk');  // window.iconvLite    iconv
+                        textEditor.value = text;
+                    } else if (encoding.toUpperCase() === 'UTF-8') {
+                        textEditor.value = e.target.result;
+                    } else if (encoding.toUpperCase() === 'UTF-16LE') {
+                        textEditor.value = e.target.result;
+                    } else if (encoding.toUpperCase() === 'UTF-16BE') {
+                        textEditor.value = e.target.result;
+                    } else if (encoding.toUpperCase() === 'ASCII') {
+                        textEditor.value = e.target.result;
+                    } else {
+                        // 尝试使用UTF-8，如果失败则使用原始二进制
+                        try {
+                            textEditor.value = e.target.result;
+                        } catch (err) {
+                            statusMessage.textContent = '自动解码失败，请尝试手动选择编码';
+                        }
+                    }
+                    
+                    updateLineNumbers();
+                    
+                    fileInfo.innerHTML = `文件: ${file.name} (${formatFileSize(file.size)}) | ${autoDdetectedEncoding?('检测编码: ' + detectedEncoding):('设置编码: ' + selectedEncoding)}`;
+                    autoDdetectedEncoding = true;
+                } catch (err) {
+                    statusMessage.textContent = '解码失败: ' + err.message + '，请尝试手动选择编码';
+                }
+            };
+            
+            reader.onerror = function() {
+                statusMessage.textContent = '文件读取失败';
+            };
+            
+            // 尝试用指定的编码读取
+            try {
+                if (encoding.toUpperCase() === 'UTF-8') {
+                    reader.readAsText(file, 'UTF-8');
+                } else if (encoding.toUpperCase() === 'UTF-16LE') {
+                    reader.readAsText(file, 'UTF-16LE');
+                } else if (encoding.toUpperCase() === 'UTF-16BE') {
+                    reader.readAsText(file, 'UTF-16BE');
+                } else if (encoding.toUpperCase() === 'ASCII') {
+                    reader.readAsText(file, 'UTF-8');
+                } else {
+                    // 对于其他编码使用原始二进制打开
+                    reader.readAsArrayBuffer(file);
+                }
+            } catch (err) {
+                reader.readAsArrayBuffer(file);  // readAsArrayBuffer  readAsText
+            }
+        }
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 更新行号
+        function updateLineNumbers() {
+            const lines = textEditor.value.split('\n');
+            let lineNumbersHtml = '';
+            
+            for (let i = 1; i <= lines.length; i++) {
+                lineNumbersHtml += i + '<br>';
+            }
+            
+            lineNumbers.innerHTML = lineNumbersHtml;
+            
+            // 同步滚动
+            lineNumbers.scrollTop = textEditor.scrollTop;
+        }
+
+        // 文本编辑器滚动时同步行号滚动
+        textEditor.addEventListener('scroll', function() {
+            lineNumbers.scrollTop = textEditor.scrollTop;
+        });
+
+        // 文本内容变化时更新行号
+        textEditor.addEventListener('input', function() {
+            updateLineNumbers();
+        });
+
+        // 取消按钮
+        cancelBtn.addEventListener('click', function() {
+            editorModal.style.display = 'none';
+        });
+
+        // 确认按钮
+        confirmBtn.addEventListener('click', function() {
+            initialCode.value = textEditor.value;
+            editorModal.style.display = 'none';
+        });
+
+        // 编码按钮
+        encodingBtn.addEventListener('click', function() {
+            /*
+            if (!currentFile) {
+                statusMessage.textContent = '请先选择文件';
+                return;
+            }
+            encodingSelect.value = detectedEncoding;
+            //*/
+            encodingModal.style.display = 'block';
+        });
+
+        // 编码确认按钮
+        encodingConfirmBtn.addEventListener('click', function() {
+            selectedEncoding = encodingSelect.value;
+            autoDdetectedEncoding = false;
+            //detectedEncoding = selectedEncoding;
+            //fileInfo.innerHTML = `文件: ${currentFile.name} (${formatFileSize(currentFile.size)}) | 使用编码: ${selectedEncoding}`;
+            //loadFileWithEncoding(currentFile, selectedEncoding);
+            encodingModal.style.display = 'none';
+            statusMessage.textContent = '已手工设置编码：' + selectedEncoding;
+            fileInput.click();  //  $('#fileInput').trigger('click');
+        });
+
+        function handleEncodingDblClick(){
+            encodingConfirmBtn.click();
+        }
+        
+        // 编码取消按钮
+        encodingCancelBtn.addEventListener('click', function() {
+            encodingModal.style.display = 'none';
+        });
+
+        // 跳转到行按钮
+        gotoLineBtn.addEventListener('click', function() {
+            gotoLineInput.value = '';
+            gotoLineModal.style.display = 'block';
+            gotoLineInput.focus();
+        });
+
+        // 跳转到行取消按钮
+        gotoLineCancelBtn.addEventListener('click', function() {
+            gotoLineModal.style.display = 'none';
+        });
+
+        // 跳转到行确认按钮
+        gotoLineConfirmBtn.addEventListener('click', function() {
+            const lineNumber = parseInt(gotoLineInput.value);
+            if (!isNaN(lineNumber) && lineNumber > 0) {
+                gotoLine(lineNumber);
+            }
+            gotoLineModal.style.display = 'none';
+        });
+
+        // 跳转到指定行
+        function gotoLine(lineNumber) {
+            const lines = textEditor.value.split('\n');
+            if (lineNumber > lines.length) {
+                lineNumber = lines.length;
+            }
+            
+            // 计算跳转位置
+            let position = 0;
+            for (let i = 0; i < lineNumber - 1; i++) {
+                position += lines[i].length + 1; // +1 for newline character
+            }
+            
+            // 设置光标位置并滚动到该位置
+            textEditor.focus();
+            textEditor.setSelectionRange(position, position);
+            
+            // 计算滚动位置
+            const lineHeight = parseInt(window.getComputedStyle(textEditor).lineHeight);
+            const editorHeight = textEditor.clientHeight;
+            const scrollTo = (lineNumber - 1) * lineHeight - editorHeight / 2;
+            textEditor.scrollTop = scrollTo;
+        }
+        
+        // 查看哈希按钮
+        viewHashBtn.addEventListener('click', function() {
+            var txt = textEditor.value;
+            txt = txt.replace("\r\n", "\n");
+            var hash = CryptoJS.SHA512(txt);
+            alert(hash.toString(CryptoJS.enc.Hex));
+        });
+        
+        // 点击模态框外部关闭窗口
+        window.addEventListener('click', function(event) {
+            if (event.target === editorModal) {
+                editorModal.style.display = 'none';
+            }
+            if (event.target === gotoLineModal) {
+                gotoLineModal.style.display = 'none';
+            }
+            if (event.target === encodingModal) {
+                encodingModal.style.display = 'none';
+            }
+        });
+
+        // 初始化行号
+        updateLineNumbers();
+    </script>
+</body>
+</html>

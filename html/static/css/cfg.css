@@ -1,0 +1,570 @@
+.cfgBtn {
+  position: fixed;
+  background-color: #f1f1f1;
+  border-radius: 33px;
+  width: 45px;
+  height: 45px;
+  color: white;
+  bottom: 35px;
+  right: 50px;
+  text-align: center;
+  padding: 12px 20px;
+  z-index: 999999;
+  box-sizing: border-box;
+  opacity: 0.3; /* 默认透明 */
+  transition: opacity 0.5s ease-in-out; /* 设置过渡效果 */
+  background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAKBJREFUWEftVsENwyAQs7fqI490gI6SHVJlg46SCdJnpnIEEhVUyhP8OT6IDza2sY4wL5rxEQR+CkiaAGwA5s62HAC+JNeEUxPYAbw6g5frT5KPfwIaBJ5hSObH1wrYCYy04CD5bBRIB0kfAEtnK1II3yTTHj0QCrQKWEMoyfsNJdmLyE7Aa0E0Yef+v70+ZsJGgWjCkUGMmTBmwpI3exFdSgBaIavoiokAAAAASUVORK5CYII=");
+  background-repeat: no-repeat;
+  background-position: center center; /* 第一个center代表水平方向居中，第二个center代表垂直方向居中 */
+  /* background-size: cover; 或者可以使用contain根据需求 */
+  background-size: 25px 25px;
+}
+
+.cfgBtn:hover {
+  background-color: #05c1f1; /* df8d13 */
+  cursor:pointer;
+  opacity: 1;
+}
+
+.cfgPanel {
+  display: none;
+  position: fixed;
+  right: 20px;
+  bottom: 90px;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 5px;
+  z-index: 1000;
+  padding:25px;
+}
+.cfgPanel.active {
+  display: block;
+}
+
+
+
+
+/* 滑动开关 https://zhuanlan.zhihu.com/p/716158386 */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 54px;
+  height: 30px;
+  margin: 5px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+  transform: translateY(4px); /* 向下偏移4像素 */
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #05c1f1;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(22px);
+  -ms-transform: translateX(22px);
+  transform: translateX(22px);
+}
+
+.slider.round {
+  border-radius: 25px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+
+
+
+/* 自定义样式 https://www.cnblogs.com/freedom-feng/p/11346396.html */
+.cfgRow{
+  height: 40px;
+  padding: 5px 0px;
+}
+
+.cfgInput {
+  border: 1px solid #05c1f1;
+  height: 20px;
+  width: 152px;
+  transform: translateY(-3px); /* 向上偏移3像素 */
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  background-color: #fff;
+  -webkit-appearance: none;
+  border: 1px solid #05c1f1;
+  border-radius: 2px;
+  outline: none;
+  transform: translateY(8px); /* 向下偏移8像素 */
+}
+
+input[type="checkbox"]:checked {
+  background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAsRJREFUWEftlTtoFFEUhv9zZyaimJ1dSWGENIJaGLHQQjCZ3RViIRpDFOy0E8FoEJsEERUklQgaG5FoUiqCxGhj4WQ2IhYpExtF7IPsIw/i3tl7dLJ57DM70d1Nkynv3HP+7557zn8Jm/zRJutjC6DuFdDteMTV9GlYjTPe9dcPYJJ36AuzI8R8nkFjbjjQWT8Ae253g8iMMHByqekZgzJiXq8LwLaJ1H6leATAsezE8UcZNDtxmOZrDmDYiaPQxDCYD2bFaUoT6uxie/DHyvjXrAd0J3GCgGGAWpZPPgeNOmSb+SXXe2oC0GDHu1iIFwCCqycl1ZW2QqOFxld1AMOJXwTEcwDaqhjRZWkFnpVy3aoCGM7sVUA9yRVi4LYbNu+Xs/yqAeixRD8xDeQJEQallR23igDaROq0YNxERr2UMIcRpUW/D1XDeGqAifvzTk406lqBrko5VitgxFI2mCPZUWWbhNaTthq/VkpgOMlBAD0F+75JLXAEbTRbKX4NYDz5EIQbOQE/laBrmfbAu5JJmIURS3nNdqnwv1DY9ztqfq8knm9EsZlmg40PALXmBQr0ynbzcd6aHQ/qQhsicHehCIOOu+HAZz/i+QDe3DjJUwJ4XxwsHkm1s8/ri+3OQosLOQSgo2imWXWnI6E3fsWLALwF3UncIlDR2HgvmCDqY1ae+LKv50gxemWkoFI+SEqOoe4kXhPoXFE80fSar+f+pacyHLjiQ684Zcmg2Hyzwe4nAHt9JJ2QYdPysa/klrJGtOQLisfWTcz4JSNm07+Kl+yB3GS6k7zzl/BuOQGpVAjRUKJmANmmTL0l8JmijleZQ+norqn/Ea9YgaXksflmHZlJYt6zIkbgC+lw8NX/ivsD8PzB64cMPwDhACt1z42Gyl7LRqH8v4Z2qklHptWNhsY3KrLefv8A1VTNybUFsOkV+ANV4+EhtxELHgAAAABJRU5ErkJggg==")
+  no-repeat center;
+  background-size: 100% 100%;
+  
+}
+
+.cfgLabel{
+  margin-right: 15px;
+}
+
+.radio-sex {
+  position: relative;
+  display: inline-block;
+  margin-right: 12px;
+}
+ 
+.radio-sex input {
+  vertical-align: middle;
+  /* 前面三行代码是为了让radio单选按钮与文字对齐 */
+  width: 20px;
+  height: 20px;
+  appearance: none; /*清楚默认样式*/
+  -webkit-appearance: none;
+  opacity: 0;
+  outline: none;
+  /* 注意不能设置为display:none*/
+}
+ 
+.radio-sex label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  /*注意层级关系，如果不把label层级设为最低，会遮挡住input而不能单选*/
+  width: 20px;
+  height: 20px;
+  border: 1px solid #05c1f1;
+  border-radius: 100%;
+}
+ 
+.radio-sex input[type="radio"]:checked + label {
+  background: #05c1f1;
+}
+ 
+.radio-sex input[type="radio"]:checked + label::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 2px;
+  width: 5px;
+  height: 12px;
+  border-right: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  transform: rotate(45deg);
+}
+.radio-sex span{
+  vertical-align: middle;
+}
+/* 预览尺寸 */
+.radio-label, .radio-check {
+  display: inline-block;
+  position: relative;
+}
+.radio-label input[type="radio"] {
+  appearance: none; /*清除默认样式*/
+  -webkit-appearance: none;
+  /* opacity: 0; */
+  outline: none;
+  position: absolute;
+  z-index: 2;
+  width: 6px;
+  height: 6px;
+  top: 9px;
+  left: 10px;
+  border-radius: 50%;
+  background: #b4b4b4;
+}
+.radio-label label {
+  display: inline-block;
+  min-width: 50px;
+  height: 30px;
+  line-height:28px;
+  text-align: center;
+  padding-right: 10px;
+  border-radius: 15px;
+  padding-left: 25px;
+  color: #fff;
+  background-color: #c9c9c9;
+  cursor:pointer;
+  margin-right: 8px;
+}
+.radio-label input[type="radio"]:checked {
+  opacity: 0;
+}
+.radio-label input[type="radio"]:checked + label {
+  color: #fff;
+  background-color: #05c1f1;
+}
+.radio-label input[type="radio"]:checked + label::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 5px;
+  width: 5px;
+  height: 12px;
+  border-right: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  transform: rotate(45deg);
+}
+
+
+.cfgBtnArea {
+  height: 55px;
+  background-color: #c1c1c1;
+}
+
+.cfgOptBtn {
+  cursor: pointer;
+  background-color: #05c1f1;
+  border-radius: 5px;
+  width: 45px;
+  height: 30px;
+  color: white;
+  text-align: center;
+  padding: 3px 10px;
+  box-sizing: border-box;
+  margin: 0px 10px 4px;
+}
+
+.cfgOpeBtn {
+  cursor: pointer;
+  background-color: #05c1f1;
+  border-radius: 5px;
+  height: 30px;
+  color: white;
+  text-align: center;
+  padding: 3px 16px;
+  box-sizing: border-box;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#editorModal, #gotoLineModal, #encodingModal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 90%;
+    height: 80%;
+    display: flex;
+    flex-direction: column;
+    min-width: 399px;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #05c1f1;
+}
+.modal-tabs {
+    display: flex;
+}
+.modal-tab {
+    padding: 8px 16px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    margin-right: 5px;
+    border-radius: 4px 4px 0 0;
+    color: #05c1f1;
+    font-weight: bold;
+}
+.modal-tab.active {
+    border-color: #05c1f1;
+    background-color: #05c1f1;
+    color: #fff;
+    font-weight: bold;
+}
+.modal-tab-content {
+    display: none;
+    flex-grow: 1;
+    overflow: hidden;
+}
+.modal-tab-content.active {
+    display: flex;
+    flex-direction: column;
+}
+.top-button-container {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    align-items: center;
+}
+.left-button-group, .right-button-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1px;
+    margin-right: 15px;
+}
+#editorContainer {
+    display: flex;
+    flex-grow: 1;
+    height: 70%;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+#lineNumbers {
+    width: 40px;
+    background-color: #f5f5f5;
+    padding: 10px 5px;
+    overflow-y: hidden;
+    text-align: right;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    border-right: 1px solid #ddd;
+    user-select: none;
+}
+#textAreaContainer {
+    flex-grow: 1;
+    position: relative;
+    overflow: hidden;
+}
+#textEditor {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    resize: none;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    tab-size: 4;
+    white-space: nowrap;
+    overflow-x: auto;
+    // border: none;
+}
+.button-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+    gap: 10px;
+}
+button, .file-input-wrapper {
+    padding: 2px 16px;
+    cursor: pointer;
+    height: 36px;
+    box-sizing: border-box;
+    border: 0px solid #05c1f1;
+    border-radius: 4px;
+    background-color: #05c1f1;
+    height: 30px;
+    color: #fff;
+}
+button:hover, .file-input-wrapper:hover {
+    background-color: #3bd7ff;
+}
+.file-input-wrapper {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+}
+.file-input-wrapper input[type="file"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+.file-input-label {
+    display: inline-block;
+    cursor: pointer;
+}
+#initialCode {
+    width: 100%;
+    height: 200px;
+    margin-top: 10px;
+    font-family: monospace;
+}
+#fileInfo {
+    margin: 10px 0;
+    font-size: 14px;
+    color: #666;
+}
+.small-modal {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 300px;
+}
+#gotoLineInput, #encodingSelect {
+    width: 100%;
+    padding: 8px;
+    margin: 10px 0;
+    box-sizing: border-box;
+}
+#encodingSelect {
+    height: 120px;
+}
+.status-message {
+    color: #d9534f;
+    margin-top: 5px;
+    font-size: 13px;
+}
+.config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 15px;
+}
+.config-item {
+    display: flex;
+    align-items: center;
+    height: 40px;
+}
+.config-item .caption {
+    width: 108px;
+    margin-right: 10px;
+    min-width: 108px;
+}
+.config-item input[type="number"],
+.config-item input[type="text"] {
+    padding: 8px;
+    border: 1px solid #05c1f1;
+    border-radius: 4px;
+}
+.config-item input[type="checkbox"] {
+    margin-right: 5px;
+}
+.autoGrow {
+    flex-grow: 1;
+}
+
+.about-content {
+    padding: 20px;
+    line-height: 1.6;
+}
+.about-content h3 {
+    margin-top: 0;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+.about-content p {
+    margin: 5px 0;
+}
+.version-info {
+    background-color: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 15px;
+    font-family: monospace;
+    display: flex;
+    width: 100%;
+    position: relative;
+    flex-direction: column;
+}
+
+.config-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    position: relative;
+}
+
+.config-controls {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+}
+
+.fixed-right-button {
+    position: absolute;
+    right: 0;
+    top: 55%;
+    transform: translateY(-50%);
+    padding: 3px 16px;
+    font-size: 16px;
+    background-color: #05c1f1;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.fixed-right-img {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    border-radius: 5px;
+    cursor: pointer;
+    width: 90px;
+    height: 90px;
+}
+
+.alipay {
+    right: 120px;
+}
+
+.wechat {
+    right: 10px;
+}
+
+.donate {
+    display: none;
+}
+
+.version-info:hover .donate {
+    display: block;
+}

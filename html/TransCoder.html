@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>文件转码工具【XO】</title>
+<link rel="stylesheet" type="text/css" href="./static/css/cfg.css"/>
+<link rel="stylesheet" type="text/css" href="./static/css/photoswipe.css"/>
+<link rel="stylesheet" type="text/css" href="./static/css/default-skin/default-skin.css"/>
+<link rel="stylesheet" href="./static/fontawesome-free-5.15.4-web/css/all.min.css">
+    
+<script type="text/javascript" src="./static/js/jquery-3.7.1.js"></script>
+<script type="text/javascript" src="./static/js/jszip-3.10.1.js"></script>
+<script type="text/javascript" src="./static/js/crypto-js.min_4.2.0.js"></script>
+<script type="text/javascript" src="./static/js/jquery.mousewheel.min.js"></script>
+<script type="text/javascript" src="./static/js/photoswipe.js"></script>
+<script type="text/javascript" src="./static/js/photoswipe-ui-default.js"></script>
+<script type="text/javascript" src="./static/js/docx.js"></script>
+<script type="text/javascript" src="./static/js/jschardet.min_3.2.0.js"></script>
+<script type="text/javascript" src="./static/js/require.min_2.3.6.js"></script>
+<script>
+var iconv;
+require(['./static/js/iconv-lite-umd_0.6.10.js'], function(iconvLite) {
+    iconv = iconvLite;
+});
+</script>
+<style>
+.imageDiv {
+    display:inline-block;
+    /* width:160px;
+    height:130px; //*/
+    -webkit-box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    box-sizing:border-box;
+    border:1px dashed darkgray;
+    background:#f8f8f8;
+    position:relative;
+    overflow:hidden;
+    margin:10px
+}
+
+.cover {
+    width: 18px;
+    height: 18px;
+    border: solid 3px #6a6a6a;
+    color:#6a6a6a;
+    background-color:rgba(0,0,0,.3);
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    border-radius: 50px;
+    -webkit-margin-before: 0;
+    -webkit-margin-after: 0;
+    margin: 0;
+    padding: 0;
+    font-size:16px;
+    text-align:center;
+    line-height:16px;
+    align:center;
+    cursor:pointer;
+    font-size:20px;
+    opacity: 0; /* 默认透明 */
+    transition: opacity 0.5s ease-in-out; /* 设置过渡效果 */
+}
+
+.cover:hover {
+    opacity: 1;
+}
+
+.imageDiv:hover .cover {
+    display:block;
+}
+
+.addImages {
+    display:inline-block;
+    width:160px;
+    height:130px;
+    -webkit-box-sizing:border-box;
+    -moz-box-sizing:border-box;
+    box-sizing:border-box;
+    border:1px dashed darkgray;
+    background:#f8f8f8;
+    position:relative;
+    overflow:hidden;
+    margin:10px;
+}
+
+.text-detail {
+    margin-top:25px;
+    text-align:center;
+}
+
+.text-detail span {
+    font-size:40px;
+    color: #8f8f94;
+}
+
+.text-detail p {
+    font-size: 14px;
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #8f8f94;
+}
+
+.upFileBtn {
+    position:absolute;
+    top:0;
+    left:0;
+    width:160px;
+    height:130px;
+    opacity:0;
+}
+
+.msg-toast {
+    position: fixed;
+    background-color: #05c1f1;
+    border-radius: 33px;
+    color: white;
+    top: 20px;
+    right: 20px;
+    text-align: center;
+    padding: 6px 12px;
+    opacity: 1;
+    z-index: 999999;
+    transition: transform .25s, opacity .25s, top .25s;
+    box-sizing: border-box;
+}
+
+
+.contentMask {
+    display: none;
+    top: 0;
+    left: 0;
+    width: 100%; /*容器占满整个屏幕*/
+    height: 100%;
+    position: fixed;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9998;
+}
+
+.contentClose {
+    width: 18px;
+    height: 18px;
+    border: solid 3px #6a6a6a;
+    color:#6a6a6a;
+    background-color:rgba(0,0,0,.3);
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    border-radius: 50px;
+    -webkit-margin-before: 0;
+    -webkit-margin-after: 0;
+    margin: 0;
+    padding: 0;
+    font-size:16px;
+    text-align:center;
+    line-height:16px;
+    align:center;
+    cursor:pointer;
+    font-size:20px;
+}
+
+</style>
+</head>
+<body>
+
+<div id="Pic_pass">
+   <div class="picDiv">
+       <div class="addImages">
+           <input type="file" class="upFileBtn" id="upFileBtn" multiple="" accept=".zip, .jpg, .jepg, .png, .bmp, .gif, .webp, .dat, .bin, .docx, .xlsx, .pptx, .pdf, .mp4" />
+           <div class="text-detail">
+               <span>+</span>
+               <p>选择图片或压缩包</p>
+           </div>
+       </div>
+   </div>
+</div>
+
+<div id="result_block" style="display:none;">
+  <h3>Zip File Names :</h3>
+  <div id="result"></div>
+</div>
+
+<div id="cfgBtn" class="cfgBtn"></div>
+
+<div id="messageBox" style="display:none;" class="msg-toast">
+  消息内容! <span id="countdown"></span>
+</div>
+
+
+
+
+
+<!-- 配置弹出窗口 -->
+<div id="editorModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-tabs">
+                <div class="modal-tab active" data-tab="editor">初始编码</div>
+                <div class="modal-tab" data-tab="config">通用配置</div>
+                <div class="modal-tab" data-tab="about">关于</div>
+            </div>
+            <div class="right-button-group">
+                <button id="mainConfirmBtn" class="fas fa-check-circle" title="查看配置"/>
+                <!--button id="mainExportBtn" class="fas fa-download" title="打包导出"/-->
+                <button id="mainCancelBtn" class="fas fa-times-circle" title="关闭窗口"/>
+            </div>
+        </div>
+        
+        <!-- 初始编码选项卡 -->
+        <div id="editorTab" class="modal-tab-content active">
+            <div class="top-button-container">
+                <div class="left-button-group">
+                    <div class="file-input-wrapper">
+                        <span class="file-input-label fas fa-folder-open" title="打开"></span>
+                        <input type="file" id="fileInput" accept=".txt,.text,.csv,.json,.xml,.html,.js,.css,.md">
+                    </div>
+                    <button id="encodingBtn" class="fas fa-laptop-code" title="文件编码"/>
+                    <button id="gotoLineBtn" class="fas fa-sort-amount-down-alt" title="跳转到行"/>
+                    <button id="viewHashBtn" class="fas fa-water" title="查看哈希"/>
+                </div>
+            </div>
+            
+            <div id="editorContainer">
+                <div id="lineNumbers"></div>
+                <div id="textAreaContainer">
+                    <textarea id="textEditor" spellcheck="false"></textarea>
+                </div>
+            </div>
+            
+            <div id="fileInfo"></div>
+            <div id="statusMessage" class="status-message"></div>
+        </div>
+        
+        <!-- 通用配置选项卡 -->
+        <div id="configTab" class="modal-tab-content">
+            <div class="config-form">
+                <div class="config-item">
+                    <div class="config-row">
+                        <label class="caption" for="convertChk">文件内容转码:</label>
+                        <label class="switch">
+                            <input type="checkbox" id="convertChk" checked="checked"/>
+                            <span class="slider round"></span>
+                        </label>
+                        <div class="config-controls">
+                            <button id="pkgDownBtn" class="fixed-right-button" title="打包图片并下载">打包下载</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <label class="caption" for="loopCount">编码循环次数:</label>
+                    <input type="number" id="loopCount" class="cfgInput autoGrow" min="1" max="200" >
+                </div>
+                <div class="config-item">
+                    <label class="caption" for="loopFileName">名称循环编码:</label>
+                    <label class="switch">
+                        <input type="checkbox" id="loopFileName" />
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <div class="config-item" id="fileNamePrefixContainer">
+                    <label class="caption" for="fakeName">路径名称替换:</label>
+                    <input type="text" id="fakeName" class="cfgInput autoGrow" autocomplete="off" placeholder="当前路径名">
+                    <label id="f2tBtn" class="cfgOptBtn">转</label>
+                    <input type="text" id="trueName" class="cfgInput autoGrow" autocomplete="off" placeholder="原始路径名">
+                </div>
+                <div class="config-item">
+                    <div class="config-row">
+                        <label class="caption" for="viewSize">预览图片大小:</label>
+                        <div class="radio-label" onclick="resetPreviewSize('160*130')">
+                            <input type="radio" id="previewNormal" name="color">
+                            <label for="previewNormal">160*130</label>
+                        </div>
+                        <div class="radio-label" onclick="resetPreviewSize('160*213')">
+                            <input type="radio" id="previewMedium" name="color">
+                            <label for="previewMedium">160*213</label>
+                        </div>
+                        <div class="radio-label" onclick="resetPreviewSize('400*300')">
+                            <input type="radio" id="viewNormalH" name="color">
+                            <label for="viewNormalH">400*300</label>
+                        </div>
+                        <div class="radio-label" onclick="resetPreviewSize('300*400')">
+                            <input type="radio" id="viewNormalV" name="color">
+                            <label for="viewNormalV">300*400</label>
+                        </div>
+                        <div class="radio-label" onclick="resetPreviewSize('800*600')">
+                            <input type="radio" id="viewMediumH" name="color">
+                            <label for="viewMediumH">800*600</label>
+                        </div>
+                        <div class="radio-label" onclick="resetPreviewSize('600*800')">
+                            <input type="radio" id="viewMediumV" name="color">
+                            <label for="viewMediumV">600*800</label>
+                        </div>
+                        <div class="radio-label" onclick="resetPreviewSize('1200*675')">
+                            <input type="radio" id="viewBigH" name="color">
+                            <label for="viewBigH">1200*675</label>
+                        </div>
+                        <input type="text" id="viewSize" class="cfgInput" style="width: 100px;margin-top: 10px;" placeholder="宽 * 高">
+                        <div class="config-controls">
+                            <button id="viewSizeBtn" class="fixed-right-button" title="调整大小">调整大小</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-row">
+                        <label class="caption" for="sameWidth">是否列表等宽:</label>
+                        <label class="switch">
+                            <input type="checkbox" id="sameWidth" checked="checked"/>
+                            <span class="slider round"></span>
+                        </label>
+                        <div class="config-controls">
+                            <button id="listViewBtn" class="fixed-right-button" title="列表查看">列表查看</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="config-item">
+                    <div class="config-row">
+                        <label class="caption" for="autoSlide">是否自动切换:</label>
+                        <label class="switch">
+                            <input type="checkbox" id="autoSlide" checked="checked"/>
+                            <span class="slider round"></span>
+                        </label>
+                        <input type="number" id="autoTimes" class="cfgInput" style="width: 50px;margin-top: 10px;" min="1" max="60" placeholder="秒数">
+                        <div class="config-controls">
+                            <button id="slideViewBtn" class="fixed-right-button" title="滑动查看">滑动查看</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 关于选项卡 -->
+        <div id="aboutTab" class="modal-tab-content">
+            <div class="about-content">
+                <h3>文件转码工具(H)</h3>
+                <p>这是一个支持文件内容预览的打包、解压工具，可以对文件内容进行转码加密。</p>
+                
+                <h4>注意事项：</h4>
+                <ul>
+                    <li>文件内容可预览的文件格式包含：jpg，docx等。</li>
+                    <li>通过可配置的初始编码、循环次数，多次分别获取SHA512编码，拼接成转码编码。</li>
+                    <li>打包和解压文件时，对文件内容（每个字节）分别按转码编码进行转换，实现文件的加密和解密。</li>
+                    <li>太短的初始编码很容易被暴力破解，直接使用文本文件也存在枚举风险，使用较大的文本文件，“随机”修改文件某处的内容，会显著提高破解难度。</li>
+                    <li>请牢记初始编码、循环次数等转码信息，否则会导致打包后的文件无法恢复（解密）。</li>
+                </ul>
+                
+                <div class="version-info">
+                    <p>版本: 1.0</p>
+                    <p>日期: 2025-05-31</p>
+                    <p>ByXO</p>
+                    <div class="donate">
+                        <img class="fixed-right-img alipay" src="data:image/png;base64,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"/>
+                        <img class="fixed-right-img wechat" src="data:image/png;base64,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"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 跳转到行窗口 -->
+<div id="gotoLineModal">
+    <div class="small-modal">
+        <h3>跳转到行</h3>
+        <input type="number" id="gotoLineInput" placeholder="输入行号" min="1">
+        <div class="button-container">
+            <button id="gotoLineCancelBtn">取消</button>
+            <button id="gotoLineConfirmBtn">确认</button>
+        </div>
+    </div>
+</div>
+
+<!-- 编码选择窗口 -->
+<div id="encodingModal">
+    <div class="small-modal">
+        <h3>选择文件编码</h3>
+        <select id="encodingSelect" multiple="multiple" ondblclick="handleEncodingDblClick()">
+            <option value="GBK">GBK</option>
+            <option value="UTF-8">UTF-8</option>
+            <option value="UTF-16LE">UTF-16LE</option>
+            <option value="UTF-16BE">UTF-16BE</option>
+            <option value="ISO-8859-1">ISO-8859-1</option>
+        </select>
+        <div class="button-container">
+            <button id="encodingCancelBtn">取消</button>
+            <button id="encodingConfirmBtn">确认</button>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+<!-- PhotoSwipe Home Page Url https://photoswipe.com/ -->
+<!-- PhotoSwipe Github Url https://github.com/dimsemenov/photoswipe -->
+<!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo https://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                      <div class="pswp__preloader__cut">
+                        <div class="pswp__preloader__donut"></div>
+                      </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div> 
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+var cssWidth = '160px';
+var cssHeight = '130px';
+var $result = $("#result");
+var imgIdx=0;    //图片序号，每次从0开始
+var imgSeq=0;    //图片序号，只增不减
+var delIdx=0;    //删除序号，每次从0开始
+var btnDiv = $(".addImages");    //addImages   btnDiv
+var userAgent = navigator.userAgent;    //用于判断浏览器类型
+var cfgInitialEncoding = "密码示例-pWd_2025";  //初始编码
+var cfgConvertFlag = true;                     //对压缩包文件内容进行转码
+var cfgLoopCount = 20;                         //文件转码生成循环次数
+var cfgLoopFileName = false;                   //文件转码生成是否包含文件名
+var eqwListFlag = true;    //列表等宽
+var nxtAutoFlag = true;    //自动播放
+var cfgAutoTimes = 3;      //自动播放时间间隔
+var fixedEncode = "";      //固定编码部分
+var cutHeadFlag = false;   //删除文件头两个字节
+
+
+//选择文件
+$("#upFileBtn").on("change", function(evt) {
+    setCfgVal();
+    imgIdx = 0;
+    var fileIdx = 0;
+    var files = evt.target.files;
+    for (var i = 0; i < files.length; i++) {
+        fileIdx++;
+        var fileName = files[i].name.toLowerCase();
+        if(fileName.endsWith('.zip') || fileName.endsWith('.dat') || fileName.endsWith('.bin')){
+            handleZipFile(files[i]);
+        }else{
+            handleImgFile(files[i]);
+        }
+    }
+    if(fileIdx > 0){
+        showWaitMessageBox("Loaded!" , 5);
+        console.log(formatTimeWithMs(), "Loaded!");
+        fixedEncode = ""
+        cfgPanelHide();
+    }
+});
+
+// 处理选择的压缩包
+function handleNoMaxZipFile(f) {
+    var $title = $("<h4>", {
+        text : "f.name"
+    });
+    var $fileContent = $("<ul>");
+    $result.append($title);
+    $result.append($fileContent);
+
+    var dateBefore = new Date();
+    JSZip.loadAsync(f)                                   // 1) read the Blob
+        .then(function(zip) {
+            var dateAfter = new Date();
+            $title.append($("<span>", {
+                "class": "small",
+                text:" (loaded in " + (dateAfter - dateBefore) + "ms)"
+            }));
+            
+            zip.forEach(function (relativePath, zipEntry) {  // 2) print entries
+                $fileContent.append($("<li>", {
+                    text : zipEntry.name
+                }));
+                showWaitMessageBox("Rendering " + imgSeq + " ：" + f.name, 1);
+                
+                // 确保zipEntry存在并且是文件
+                if (zipEntry && zipEntry.async !== undefined) {
+                    if(cfgConvertFlag || cutHeadFlag){
+                        zipEntry.async('arraybuffer').then(function(arrayBuffer) {
+                            // 将ArrayBuffer转换为Uint8Array，以便操作二进制数据
+                            var uint8Array = new Uint8Array(arrayBuffer);
+                            var zipFileSize = uint8Array.length;
+                            
+                            if(cfgConvertFlag){
+                                var encryPin = getMaxEncryPin(pin, zipEntry.name, maxZipFileSize);
+                                //uint8Array = xorWithByte(uint8Array, 0xFF);   // 0xFF
+                                uint8Array = xorArrayWithString(uint8Array, encryPin);
+                            }
+                            
+                            // 在前面加上两个字节的代码
+                            // 假设你要添加的两个字节是0x01和0x02
+                            var newData = new Uint8Array(zipFileSize);
+                            if(cutHeadFlag){
+                                newData = new Uint8Array(zipFileSize + 2);
+                                newData.set([0xFF, 0xD8], 0); // 在前两个位置设置新的字节
+                                newData.set(uint8Array, 2);   // 将原始数据从第三个位置开始设置
+                            }else{
+                                newData.set(uint8Array);
+                            }
+
+                            // 现在newData包含了添加的两个字节和原始的文件内容
+                            // 如果需要，可以将newData转换回ArrayBuffer或Blob来使用
+                            // var newArrayBuffer = newData.buffer.slice(newData.byteOffset, newData.byteOffset + newData.byteLength);
+                            
+                            // 处理newData，例如转换为base64或其他操作
+                            //var base64 = btoa(String.fromCharCode.apply(null, newData));
+                            var base64 = arrayBufferToBase64(newData);
+                            appendImg(base64, zipEntry.name);
+                        });
+                    }else{
+                        // 转换为Base64
+                        zipEntry.async('base64').then(function(base64) {
+                            appendImg(base64, zipEntry.name);
+                        });
+                    }
+                } else {
+                    console.error('Entry not found or not a file.');
+                }
+            });
+        }, function (e) {
+            /*
+            $result.append($("<div>", {
+                "class" : "alert alert-danger",
+                text : "Error reading " + f.name + ": " + e.message
+            }));  //*/
+            //showWaitMessageBox("Error reading " + f.name + ": " + e.message, 5);
+        });
+}
+
+// 处理选择的压缩包
+function handleZipFile(f) {
+  return new Promise((resolve, reject) => {
+    const zip = new JSZip();
+    zip.loadAsync(f)
+   .then(zip => {
+        const imgDataArr = [];
+        const imagePromises = [];
+        zip.forEach((relativePath, zipEntry) => {
+          if (!zipEntry.dir) { // 仅处理文件，排除目录
+            // 读取图片文件的二进制数据
+            imagePromises.push(
+              zipEntry.async("uint8array").then(data => {
+                imgDataArr.push({
+                  name: zipEntry.name,
+                  size: data.length,
+                  binary: data
+                });
+              })
+            );
+          }
+        });
+        return Promise.all(imagePromises).then(() => imgDataArr);
+      })
+   .then(imgDataArr => {
+        // 找到最大的图片 size
+        maxZipFileSize = 0;
+        imgDataArr.forEach(image => {
+          if (image.size > maxZipFileSize) {
+            maxZipFileSize = image.size;
+          }
+        });
+        console.log(formatTimeWithMs(), 'The biggest zip image size is: ', maxZipFileSize);
+        displayImages(imgDataArr);
+        resolve(imgDataArr);
+      })
+   .catch(error => {
+        console.error('Error loading ZIP file:', error);
+        reject(error);
+      });
+  });
+}
+
+function displayImages(imgDataArr){
+  var encryPin = "";
+  if(cfgConvertFlag && !cfgLoopFileName){
+    encryPin = getXorKey("");
+  }
+  imgDataArr.forEach(image => {
+    var uint8Array = new Uint8Array(image.size);
+    uint8Array.set(image.binary);
+    if(cfgConvertFlag){
+        var finalEncryPin = "";
+        if(cfgLoopFileName){
+            finalEncryPin = getXorKey(image.name);
+        }else{
+            var tFn = getTrueFn(image.name);
+            var puppet = getFnPuppet(tFn);
+            finalEncryPin = puppet + encryPin;
+        }
+        //uint8Array = xorWithByte(uint8Array, 0xFF);   // 0xFF
+        uint8Array = xorArrayWithString(uint8Array, finalEncryPin);
+    }
+    
+    // 在前面加上两个字节的代码
+    var newData = new Uint8Array(image.size);
+    if(cutHeadFlag){
+        newData = new Uint8Array(image.size + 2);
+        newData.set([0xFF, 0xD8], 0); // 在前两个位置设置新的字节
+        newData.set(uint8Array, 2);   // 将原始数据从第三个位置开始设置
+    }else{
+        newData.set(uint8Array);
+    }
+    
+    // 展示文件（视频或图片）
+    var imgName = image.name;
+    imgName = getTrueFn(imgName);
+    if(imgName.endsWith("ts")){
+        appendTs(newData, imgName);
+    }else if(imgName.endsWith("mp4")){
+        appendMp4(newData, imgName);
+    }else if(imgName.endsWith("docx")){
+        appendDocx(newData, imgName);
+    }else{
+        var base64 = arrayBufferToBase64(newData);
+        appendImg(base64, imgName);
+    }
+  });
+  
+  // 清空配置信息
+  clearCfgVal();
+}
+
+// 显示图片
+function appendImg(base64, title){
+    //console.log(base64); // 这里是文件的Base64编码
+    if (base64 && base64.length > 10) {
+        imgIdx++;
+        imgSeq++;
+        let imgBase64 = 'data:image/jpeg;base64,' + base64;
+        
+        //动态添加html元素
+        var picHtml = "<div class='imageDiv' id='div" + imgSeq + "' "
+        picHtml = picHtml + "' ondblclick='photoSlide(this)' > " //  onmousedown='myDown(this)' onmouseup='myUp(this)'
+        picHtml = picHtml + "<img id='img" + imgSeq + "' src='" + imgBase64 + "' title='" + title + "' ";
+        picHtml = picHtml + "style='width:" + cssWidth + ";height:" + cssHeight + ";' data-preview-src='' data-preview-group='1'/> ";
+        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveImg'>━</div></div>";
+        btnDiv.before(picHtml);  //append  prepend  after  before
+        
+        if(imgSeq % 100 == 0){
+            var msg = imgSeq + " files loaded.";
+            console.log(msg);
+            showWaitMessageBox(msg , 3);
+        }
+    }
+}
+
+// 显示ts文件
+function appendTs(byteData, title){
+    if (byteData && byteData.length > 10) {
+        imgIdx++;
+        imgSeq++;
+        
+        // 将Uint8Array转换为Blob对象
+        let videoBlob = new Blob([byteData], { type: 'application/x-mpegURL' });
+         
+        // 创建一个指向这个Blob的URL
+        let videoUrl = URL.createObjectURL(videoBlob);
+        
+        //动态添加html元素
+        var picHtml = "<div class='imageDiv' id='div" + imgSeq + "' "
+        picHtml = picHtml + "' ondblclick='photoSlide(this)' > " //  onmousedown='myDown(this)' onmouseup='myUp(this)'
+        picHtml = picHtml + "<video  id='img" + imgSeq + "' src='' title='" + title + "' ";
+        picHtml = picHtml + "style='width:" + cssWidth + ";height:" + cssHeight + ";' data-preview-src='' data-preview-group='1' controls /> ";
+        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveImg'>━</div></div>";
+        btnDiv.before(picHtml);  //append  prepend  after  before
+        
+        if(imgSeq % 100 == 0){
+            var msg = imgSeq + " files loaded.";
+            console.log(msg);
+            showWaitMessageBox(msg , 3);
+        }
+        
+        var videoObj = document.getElementById("img" + imgSeq);
+        if (Hls.isSupported()) {
+            var hls = new Hls();
+            hls.loadSource(videoUrl);
+            hls.attachMedia(videoObj);
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                videoObj.play();
+            });
+        } else if (videoObj.canPlayType('application/vnd.apple.mpegurl')) {
+            videoObj.src = videoUrl; // Fallback to native HLS playback if HLS.js is not supported by the browser.
+            videoObj.addEventListener('canplay', function() { videoObj.play(); });
+        }
+    }
+}
+
+// 显示mp4文件
+function appendMp4(byteData, title){
+    if (byteData && byteData.length > 10) {
+        imgIdx++;
+        imgSeq++;
+        
+        // 将Uint8Array转换为Blob对象
+        let videoBlob = new Blob([byteData], { type: 'application/x-mpegURL' });
+         
+        // 创建一个指向这个Blob的URL
+        let videoUrl = URL.createObjectURL(videoBlob);
+        
+        //动态添加html元素
+        var picHtml = "<div class='imageDiv' id='div" + imgSeq + "' "
+        picHtml = picHtml + "' dblclick='' > " //  onmousedown='myDown(this)' onmouseup='myUp(this)'
+        picHtml = picHtml + "<video  id='img" + imgSeq + "' src='" + videoUrl + "' title='" + title + "' loop='loop' poster='./static/img/poster.jpg' ";
+        picHtml = picHtml + "style='width:" + cssWidth + ";height:" + cssHeight + ";' data-preview-src='' data-preview-group='1' controls /> ";
+        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveImg'>━</div></div>";
+        btnDiv.before(picHtml);  //append  prepend  after  before
+        
+        if(imgSeq % 100 == 0){
+            var msg = imgSeq + " files loaded.";
+            console.log(msg);
+            showWaitMessageBox(msg , 3);
+        }
+    }
+}
+
+// 显示docx文件
+function appendDocx(byteData, title){
+    if (byteData && byteData.length > 10) {
+        imgIdx++;
+        imgSeq++;
+        
+        // 将Uint8Array转换为Blob对象
+        let videoBlob = new Blob([byteData], { type: 'application/x-mpegURL' });
+        
+        //动态添加html元素
+        var picHtml = "<div class='imageDiv' id='div" + imgSeq + "' "
+        picHtml = picHtml + "' onclick='showContent(this)' > " //  onmousedown='myDown(this)' onmouseup='myUp(this)'
+        picHtml = picHtml + "<img id='img" + imgSeq + "' src='./static/img/word.jpg' title='" + title + "' ";
+        picHtml = picHtml + "style='cursor:pointer; width:" + cssWidth + "; height:" + cssHeight + ";' /> ";
+        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveImg'>━</div></div>";
+        btnDiv.before(picHtml);  //append  prepend  after  before
+        
+        var docHtml = "<div class='contentMask' id='docMask" + imgSeq +"' ondblclick=hideContent('" + imgSeq + "')>";
+        docHtml = docHtml + "<div id='app" + imgSeq +"'></div>";
+        docHtml = docHtml + "<div class='contentClose' onclick=hideContent('" + imgSeq + "') title='HideContentViewer'>×</div></div>";
+        $("body").append(docHtml);
+        
+        var docObj = document.getElementById('app' + imgSeq);
+        Docx.docx2HTML(videoBlob).then(docx => {
+          docx.toHTML(docObj);
+        });
+        
+        if(imgSeq % 100 == 0){
+            var msg = imgSeq + " files loaded.";
+            console.log(msg);
+            showWaitMessageBox(msg , 3);
+        }
+    }
+}
+
+// 二进制转base64编码
+function arrayBufferToBase64(array) {
+    array = new Uint8Array(array);
+    var length = array.byteLength;
+    var table = ['A','B','C','D','E','F','G','H',
+                 'I','J','K','L','M','N','O','P',
+                 'Q','R','S','T','U','V','W','X',
+                 'Y','Z','a','b','c','d','e','f',
+                 'g','h','i','j','k','l','m','n',
+                 'o','p','q','r','s','t','u','v',
+                 'w','x','y','z','0','1','2','3',
+                 '4','5','6','7','8','9','+','/'];
+    var base64Str = '';
+    for(var i = 0; length - i >= 3; i += 3) {
+        var num1 = array[i];
+        var num2 = array[i + 1];
+        var num3 = array[i + 2];
+        base64Str += table[num1 >>> 2]
+            + table[((num1 & 0b11) << 4) | (num2 >>> 4)]
+            + table[((num2 & 0b1111) << 2) | (num3 >>> 6)]
+            + table[num3 & 0b111111];
+    }
+    var lastByte = length - i;
+    if(lastByte === 1) {
+        var lastNum1 = array[i];
+        base64Str += table[lastNum1 >>> 2] + table[((lastNum1 & 0b11) << 4)] + '==';
+    } else if(lastByte === 2){
+        var lastNum1 = array[i];
+        var lastNum2 = array[i + 1];
+        base64Str += table[lastNum1 >>> 2]
+            + table[((lastNum1 & 0b11) << 4) | (lastNum2 >>> 4)]
+            + table[(lastNum2 & 0b1111) << 2]
+            + '=';
+    }
+    return base64Str;
+}
+
+// 按固定值进行异或处理
+function xorWithByte(uint8Array, byteValue) {
+    var len = uint8Array.length;
+    var uint8 = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        uint8[i] = uint8Array[i] ^ byteValue;
+    }
+    return uint8;
+}
+
+// 按偏移量依次进行异或处理
+function xorArrayWithString(uint8Array, encryPin) {
+    var len = uint8Array.length;
+    var encryLen = encryPin.length;
+    var uint8 = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        var l = i%encryLen;
+        var c = encryPin.charCodeAt(l);
+        var ascii = parseInt(c);
+        uint8[i] = uint8Array[i] ^ ascii;
+    }
+    return uint8;
+}
+
+// 处理选择的图片
+function handleImgFile(file){
+    imgIdx++;
+    imgSeq++;
+    //动态添加html元素
+    var picHtml = "<div class='imageDiv' id='div" + imgSeq + "' "
+    picHtml = picHtml + "' ondblclick='photoSlide(this)' > "  //  onmousedown='myDown(this)' onmouseup='myUp(this)'
+    picHtml = picHtml + "<img id='img" + imgSeq + "' title='" + file.name + "' data-preview-src='' data-preview-group='1'/> "
+    picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveImg'>━</div></div>";
+    btnDiv.before(picHtml);  //append  prepend  after  before
+    //获取图片img[i]的对象
+    var imgObjPreview = document.getElementById("img" + imgSeq);
+    //图片属性
+    imgObjPreview.style.display = 'block';
+    imgObjPreview.style.width = cssWidth;
+    imgObjPreview.style.height = cssHeight;
+    //imgObjPreview.src = docObj.files[0].getAsDataURL();
+    //火狐7以上版本不能用上面的getAsDataURL()方式获取，需要以下方式
+    if (userAgent.indexOf('MSIE') == -1) {
+        //IE以外浏览器
+        imgObjPreview.src = window.URL.createObjectURL(file); //获取上传图片文件的物理路径;
+        consoleLog(file);
+    } else {
+        //IE浏览器
+        if (this.value.indexOf(",") != -1) {
+            var srcArr = this.value.split(",");
+            imgObjPreview.src = srcArr[i];
+            file=srcArr[i];
+            consoleLog(srcArr[i]);
+        } else {
+            imgObjPreview.src = this.value;
+            file=this.value;
+        }
+    }
+    //imgToBase64(file,imgSeqence);
+}
+
+//移除图片
+function delFile(obj){
+    var imgSeq = $(obj).parent(".imageDiv").attr("id").replace("div", "");
+    $(obj).parent(".imageDiv").remove();
+    delIdx++;
+}
+
+//显示内容
+function showContent(obj){
+    var imgSeq = $(obj).attr("id").replace("div", "");
+    $("#docMask"+imgSeq).css("overflow-y", "auto");
+    $("#docMask"+imgSeq).show();
+}
+
+//隐藏内容
+function hideContent(imgSeq){
+    $("#docMask"+imgSeq).hide();
+}
+
+//设置密码
+function getXorKey(fn){
+    var tFn = getTrueFn(fn);
+    if(fixedEncode == ""){
+        var dateBefore = new Date();
+        var cycleTimes = cfgLoopCount * 1000;
+        var encoding = cfgInitialEncoding.replace("\r\n", "\n");
+        for(var i = 0; i<cycleTimes; i++) {
+            var key = tFn + encoding + i;
+            var val = localSha512(key);
+            fixedEncode = fixedEncode + val;  //md5 or sha512
+            
+            if(i==0 || i == (cycleTimes-1) || (i+1) % 10000 ==0){
+                showWaitMessageBox(Math.round(i / cycleTimes * 100) / 100 + "% Encry Loading ... ", 3);
+                console.log(formatTimeWithMs(), `第${i+1}次循环(输入${key.length}字节) => 哈希[${val.substr(0, 8)}...](${val.length}字节)`);
+            }
+        }
+        var dateAfter = new Date();
+        consoleLog("generate XorKey in :" + (dateAfter - dateBefore) + "ms, Len: " + fixedEncode.length);
+    }
+    return fixedEncode;
+}
+
+//获取实际的文件名
+function getTrueFn(fn){
+    var tFn = fn;
+    var fakeName = $("#fakeName").val();
+    var trueName = $("#trueName").val();
+    if(fakeName!="" && trueName!=""){
+        tFn = tFn.replace(fakeName, trueName);
+    }
+    return tFn;
+}
+
+function getFnPuppet(fn){
+    let encoding = cfgInitialEncoding.replace("\r\n", "\n");
+    let pre = fn + encoding;
+    let puppet = localSha512(pre);
+    console.log(formatTimeWithMs(), `添加前缀哈希(输入${pre.length}字节) => 哈希[${puppet.substr(0, 8)}...](${puppet.length}字节)`);
+    return puppet;
+}
+
+function localSha512(msg){
+    hash = CryptoJS.SHA512(msg);
+    return hash.toString(CryptoJS.enc.Hex);
+}
+
+// 对于不支持Web Crypto API的旧浏览器，需要引入第三方库（如jssha）来实现SHA-512加密。
+function sha512(message) {
+  return crypto.subtle.digest(
+    "SHA-512",
+    new TextEncoder("utf-8").encode(message)
+  ).then(hash => {
+    return String(Array.prototype.map.call(new Uint8Array(hash), x => x.toString(16).padStart(2, '0')).join(''));
+  });
+}
+
+
+
+
+//确认保存文件
+function exportZipFile(){
+    var msg = getCfgMsg("Save Zip File ? \n\n");
+    if(confirm(msg)){
+        saveZipFile();
+    }
+}
+
+//保存压缩包文件
+function saveZipNetFile(){
+    //* 获取图片并保存
+    var zip = new JSZip();
+    var imgs = document.querySelectorAll('img');
+    imgs.forEach(function(img) {
+        var imgSrc = img.getAttribute('src');
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', imgSrc, true);
+        xhr.responseType = 'blob';
+        xhr.onload = function() {
+            if (this.status === 200) {
+                var blob = this.response;
+                var fileName = imgSrc.substring(imgSrc.lastIndexOf('/') + 1);
+                zip.file(fileName, blob);
+                if(imgs.length === [...document.querySelectorAll('img')].indexOf(img) + 1) {
+                    zip.generateAsync({type:"blob"}).then(function(content) {
+                        // see FileSaver.js
+                        saveAs(content, "images.zip");
+                    });
+                }
+            }
+        };
+        xhr.send();
+    });
+    
+    //var img = new Image();  img.src=base64;  document.body.appendChild(img); 
+    //var ta = document.createElement("textarea");   ta.innerHTML=base64s;    document.body.appendChild(ta);
+    try {
+        //var isFileSaverSupported = !!new Blob;
+        var blob = new Blob([base64s], {type: "text/plain;charset=utf-8"});
+        var nowTime = new Date();
+        saveAs(blob, fileName+"_"+nowTime.getTime()+".txt");
+    } catch (e) {showWaitMessageBox('抱歉，你的浏览器不支持 FileSaver' , 3);}
+    
+    //*/
+}
+
+//保存压缩包文件
+function saveZipPreFile(){
+    if($('.imageDiv').length>0){
+        var pin = $("#codeInput").val();
+        if(cfg_file_size>0){
+            encry_pin = getMaxEncryPin(pin);
+        }
+
+        const imgElements = document.querySelectorAll('img');
+        const zip = new JSZip();
+        let counter = 0;
+
+        const xorData = (uint8Array, xorString) => {
+            const xorStringBytes = new TextEncoder().encode(xorString);
+            for (let i = 0; i < uint8Array.length; i++) {
+                uint8Array[i] ^= xorStringBytes[i % xorStringBytes.length];
+            }
+        };
+
+        const processImage = (img) => {
+            const src = img.src;
+            const title = img.title;
+            var folderName = ""; 
+            var fileName = title;
+            if(title.indexOf("/")>0){
+                folderName = title.split('/')[0]; // 获取“/”前的名称作为文件夹名称
+                fileName = title.split('/')[1];
+            }
+            let promise;
+
+            if (src.startsWith('data:')) {
+                // Base64图片
+                const base64 = src.split(',')[1];
+                const binaryString = window.atob(base64);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                promise = Promise.resolve(bytes);
+            } else {
+                // 本地文件或网络图片
+                promise = fetch(src).then(response => response.arrayBuffer()).then(arrayBuffer => new Uint8Array(arrayBuffer));
+            }
+
+            return promise.then(uint8Array => {
+                var trimmedArray = uint8Array;
+                if(cfgConvertFlag){
+                    // 去掉前两个字节
+                    var trimmedArray = uint8Array.slice(2);
+                    // 进行异或操作
+                    var xorString = pin + title; // 替换成其他转换码
+                    if(cfg_file_size>0){
+                    xorString = encry_pin;
+                    }
+                    xorData(trimmedArray, xorString);
+                }
+                // 创建新的Blob
+                const blob = new Blob([trimmedArray], { type: 'application/octet-stream' });
+                // 保存到ZIP
+                if(folderName!=""){
+                    const folder = zip.folder(folderName);
+                    folder.file(fileName, blob);
+                }else{
+                    zip.file(fileName, blob);
+                }
+            });
+        };
+
+        const promises = Array.from(imgElements).map(processImage);
+
+        Promise.all(promises).then(() => {
+            zip.generateAsync({ type: 'blob' }).then(content => {
+                // 生成ZIP文件并提供下载
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'images.zip';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        });
+
+
+        showWaitMessageBox("Zip File Saved! " , 3);
+    }else{
+        showWaitMessageBox("No Content Needs To Be Saved! " , 3);
+    }
+}
+
+//保存压缩包文件
+function saveZipFile(){
+    if($('.imageDiv').length>0){
+        const zip = new JSZip();
+        const images = document.querySelectorAll('img');
+        let maxFileSize = 0;
+        let xorString = "";
+        let entryEncode = "";
+        let imageBuffers = [];
+
+        // Step 1: Get all image contents and determine the max file size
+        const imagePromises = Array.from(images).map((img, index) => {
+            return new Promise((resolve, reject) => {
+                if (img.src.startsWith('data:image')) {
+                    // Base64图片
+                    const base64Data = img.src.split(',')[1];
+                    const buffer = base64ToBuffer(base64Data);
+                    imageBuffers[index] = buffer;
+                    maxFileSize = Math.max(maxFileSize, buffer.byteLength);
+                    resolve();
+                } else {
+                    // 本地文件或网络图片
+                    fetch(img.src)
+                        .then(response => response.arrayBuffer())
+                        .then(arrayBuffer => {
+                            let buffer = new Uint8Array(arrayBuffer)
+                            imageBuffers[index] = buffer;
+                            maxFileSize = Math.max(maxFileSize, buffer.byteLength);
+                            resolve();
+                        })
+                        .catch(error => {
+                            consoleLog(error);
+                            alert(error);
+                            reject(error);
+                        });
+                }
+            });
+        });
+
+        // Step 2: Process images and create ZIP
+        Promise.all(imagePromises).then(() => {
+            var encryPin = "";
+            if(cfgConvertFlag && !cfgLoopFileName){
+                encryPin = getXorKey("");
+            }
+            images.forEach((img, index) => {
+                let folderName = ""; 
+                let title = img.title;
+                let fileName = title;
+                let splitLoc = fileName.lastIndexOf('/')
+                if(splitLoc > 0){
+                    folderName = title.substr(0, splitLoc);  // 获取“/”前的名称作为文件夹名称
+                    fileName = title.substr(splitLoc + 1);
+                }
+                
+                let processedData = imageBuffers[index];
+                if(cutHeadFlag){
+                    processedData = processedData.slice(2); // Remove the first two bytes
+                    fileName = fileName.replace(/\.([^.]*)$/, '.dat');
+                    title = title.replace(/\.([^.]*)$/, '.dat');
+                }
+                if(cfgConvertFlag){
+                    var finalEncryPin = "";
+                    if(cfgLoopFileName){
+                        finalEncryPin = getXorKey(title);
+                    }else{
+                        var tFn = getTrueFn(title);
+                        var puppet = getFnPuppet(tFn);
+                        finalEncryPin = puppet + encryPin;
+                    }
+                    
+                    //xorString = getXorKey(title);
+                    processedData = xorBuffer(processedData, finalEncryPin); // XOR the data
+                }
+                
+                // 创建新的Blob
+                const blob = new Blob([processedData], { type: 'application/octet-stream' });
+                // 保存到ZIP
+                if(folderName!=""){
+                    const folder = zip.folder(folderName);
+                    folder.file(fileName, blob);
+                }else{
+                    zip.file(fileName, blob);
+                }
+            });
+
+            zip.generateAsync({ type: 'blob' }).then(content => {
+                // 生成ZIP文件并提供下载
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                var nowTime = new Date();
+                a.download = "images_" + nowTime.getTime() + ".zip";
+                a.click();
+                URL.revokeObjectURL(url);
+                // 清空配置信息
+                clearCfgVal();
+            });
+        });
+
+        function base64ToBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer; 
+        }
+
+        function xorBuffer(buffer, key) {
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.length;
+            const keyLen = key.length
+            for (let i = 0; i < len; i++) {
+                bytes[i] ^= key.charCodeAt(i % keyLen);
+            }
+            return bytes.buffer;
+        }
+        
+    }else{
+        showWaitMessageBox("No Content Needs To Be Saved! " , 3);
+    }
+}
+
+// 重置预览图片大小
+function resetPreviewSize(cfg){
+    var wh = cfg.split("*");
+    $(".imageDiv").height(wh[1] + "px").width(wh[0] + "px");
+    $(".addImages").height(wh[1] + "px").width(wh[0] + "px");
+    $(".upFileBtn").height(wh[1] + "px").width(wh[0] + "px");
+    $("img").height(wh[1] + "px").width(wh[0] + "px");
+    cssWidth = wh[0] + "px";
+    cssHeight = wh[1] + "px";
+    showWaitMessageBox("Img Resized: " + cfg, 3);
+}
+//设置图片大小 document.styleSheets[0].insertRule('.imageDiv { height: 213px; }', 0);
+
+// 格式化时间
+function formatTimeWithMs() {
+  const d = new Date();
+  return `${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}.${d.getMilliseconds()}`;
+}
+
+//打印日志
+function consoleLog(obj){
+    //console.log(obj);
+}
+
+// 提示消息
+function showWaitMessageBox(msg, duration) {
+  // 显示消息框
+  document.getElementById('messageBox').style.display = 'block';
+  document.getElementById('messageBox').innerHTML = msg + ' <span id="countdown">(' + duration + 's)</span>';
+  
+  // 开始倒计时
+  var countdown = duration;
+  var countdownTimer = setInterval(function() {
+    countdown -= 1;
+    document.getElementById('countdown').innerHTML = '(' + countdown + 's)';
+    if (countdown <= 0) {
+      // 清除消息框
+      document.getElementById('messageBox').style.display = 'none';
+      clearInterval(countdownTimer);
+      // 执行刷新操作
+      
+    }else{
+      //console.log(countdown);
+    }
+  }, 1000);
+}
+ 
+// 使用函数，显示消息框，并设置倒计时为3秒
+showWaitMessageBox(" 页面将自动刷新，请稍候 ... ", 3);
+
+
+
+
+
+//PhotoSwipe预览展示
+function photoSlide(obj){
+    var pswpElement = document.querySelectorAll('.pswp')[0];
+
+    // build items array
+    var items = [];
+    var idx=0;
+    var index=0;
+    $(".imageDiv").each(function(){
+        //var imgSeq = $(obj).parent(".imageDiv").attr("id").replace("div", "");
+        var imgDiv = $(this).attr("id");
+        var imgSeq = imgDiv.replace("div", "");
+        var imgObj = $("#img"+imgSeq);
+        
+        if(obj && obj.id==imgDiv){  //imgObj.attr('id')
+            index=idx;
+        }
+        
+        /*
+        var realWidth;   //真实的宽度
+        var realHeight;  //真实的高度
+        $("<img/>").attr("src", imgObj.attr("src")).load(function() {  //$("<img/>")是创建一个临时的img标签，类似js创建一个new Image()对象！
+            realWidth = this.width;
+            realHeight = this.height;
+            consoleLog("realWidth:" + realWidth + ",realHeight:" + realHeight);
+        }); //*/
+        var imgs = new Image();
+        imgs.src=imgObj.attr('src');
+ 
+        items.push({
+            src:imgObj.attr('src'),
+            w: imgs.width,
+            h: imgs.height,
+            title: imgObj.attr('title')
+        });
+        idx++;
+    });
+        
+    // define options (if needed)
+    var options = {
+        allowPanToNext: true,
+        loop: true,
+        closeOnScroll: false,
+        closeOnVerticalDrag: true,
+        mouseUsed: true,
+        arrowKeys: true,
+        index: index // start at first slide
+    };
+
+    // Initializes and opens PhotoSwipe
+    var gallery = new PhotoSwipe( pswpElement, PhotoSwipeUI_Default, items, options);
+    gallery.init();
+    
+    //*最大化后可以滚轮切换  // $("body").mousewheel
+    $(".pswp__item").mousewheel(function(event, delta) {
+        consoleLog($("img.pswp__img:visible").length);
+        consoleLog(gallery.getCurrentIndex());
+        // 获取触发事件的DOM元素
+        // 如果需要检测特定类型，可以使用 instanceof 运算符
+        // 例如检测target是否是HTMLElement的实例
+        
+        // 在图片上滚动执行图片缩放处理
+        if (event.target instanceof HTMLImageElement) {
+            if(curGalleryIdx != gallery.getCurrentIndex()){
+                curGalleryScale=1.0;
+                curGalleryIdx = gallery.getCurrentIndex();
+            }
+            if (delta > 0) {
+                consoleLog('mousewheel_up' + delta);
+                //$(".pswp__button--arrow--left").click();
+                curGalleryScale+=0.1;
+            } else {
+                consoleLog('mousewheel_down' + delta);
+                //$(".pswp__button--arrow--right").click();
+                curGalleryScale-=0.1;
+            }
+            curGalleryScale = Math.min(Math.max(curGalleryScale, 0.5), 5);
+            consoleLog("curGalleryScale: " + curGalleryScale);
+            //$("img").animate({scale: curGalleryScale}, 100);  //$("img").css('transform', 'scale(0.8)');
+            event.target.style.transform = `scale(${curGalleryScale})`;
+        }else{
+            if (delta > 0) {
+                consoleLog('mousewheel_up' + delta);
+                $(".pswp__button--arrow--left").click();
+            } else {
+                consoleLog('mousewheel_down' + delta);
+                $(".pswp__button--arrow--right").click();
+            }
+        }
+        
+        //event.preventDefault();  //阻止元素发生默认的行为  // event.isDefaultPrevented()
+        return false;
+    } ,  { passive: false });   //*/
+    
+    //注册处理函数时，用如下方式，明确声明为不是被动的：
+    //window.addEventListener('touchmove', func, { passive: false })
+    //取消 chrome 控制台的提示：Unable to preventDefault inside passive event listener ... 
+}
+var curGalleryIdx=0;      //滚轮缩放使用
+var curGalleryScale=1.0;  //滚轮缩放使用
+
+//自动显示下一张  //$(".pswp").css("display")=='block'
+function swipeNext(){
+    $(".pswp__button--arrow--right").click();
+}
+
+//按空格显示下一张
+document.addEventListener('keydown', function(event) {
+  if (event.key === ' ' || event.keyCode === 32) { // 检查按键是否为空格
+    swipeNext();
+  }
+});
+
+
+
+//切换图片列表显示方式
+var bViewFile=false;
+function viewDivFile(max){
+    //$("body").unbind('mousewheel');
+    if(!bViewFile){
+        $(".imageDiv").each(function(){
+            $(this).css("width","100%");
+            $(this).css("height","auto");
+            var imgSeq = $(this).attr("id").replace("div", "");
+            var imgObj = $("#img"+imgSeq);
+            imgObj.css("width",max?"auto":"100%");  //auto  100%   // var img=new Image();    img.src="图片路径";   img.width取图片宽度
+            imgObj.css("height","auto");
+
+            if(max){
+                imgObj.css("cursor","move");
+                imgObj.css("position","relative");
+                imgObj.mousewheel(function(event, delta) {
+                    if (delta > 0) {
+                        consoleLog('向上滚动' + delta);
+                        imgResize(imgObj,100);
+                    } else {
+                        consoleLog('向下滚动' + delta);
+                        imgResize(imgObj,-100);
+                    }
+                    return false;
+                });
+                
+                //获取图片img[i]的对象
+                //var imgObjPreview = document.getElementById("img" + imgSeq);
+                //imgObjPreview.addEventListener('click', function(){}, false); 
+            }
+        });
+        bViewFile=true;
+    }else{
+        $(".imageDiv").each(function(){
+            $(this).css("width",cssWidth);
+            $(this).css("height",cssHeight);
+            var imgSeq = $(this).attr("id").replace("div", "");
+            var imgObj = $("#img"+imgSeq);
+            imgObj.css("width",cssWidth);
+            imgObj.css("height",cssHeight);
+
+            imgObj.css("left","0px");
+            imgObj.css("top","0px");
+            imgObj.css("cursor","default");
+            imgObj.css("position","static");
+            
+            imgObj.unbind('mousewheel');
+            
+            //获取图片img[i]的对象
+            //var imgObjPreview = document.getElementById("img" + imgSeq);
+            //imgObjPreview.addEventListener('click', function(){photoSlide(this)}, false); 
+        });
+        bViewFile=false;
+    }
+}
+
+//缩放列表显示的图片
+function imgResize(imgObj,size){
+    var oWidth = imgObj.width();   //取得图片的实际宽度
+    var oHeight = imgObj.height(); //取得图片的实际高度
+    var sizeChange = size;
+    imgObj.width(oWidth + sizeChange);
+    imgObj.height(oHeight + sizeChange / oWidth * oHeight);
+}
+
+
+//URL参数处理
+let datFileName = "";
+document.addEventListener('DOMContentLoaded', function() {
+    // 获取URL中的文档名称
+    const urlParams = new URLSearchParams(window.location.search);
+    datFileName = urlParams.get('dat') || urlParams.get('file');
+    if(datFileName && datFileName!=""){
+        displayOnlineData();
+    }
+});
+
+//显示在线文件内容
+function displayOnlineData(){
+    // 获取文档
+    fetch(datFileName)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('文档加载失败: ' + response.statusText);
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            handleZipFile(blob);
+        })
+        .catch(error => {
+            console.error(error);
+        });
+}
+</script>
+<script type="text/javascript" src="./static/js/cfg.js"></script>
+</body>
+</html>
