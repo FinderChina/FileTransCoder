@@ -1,0 +1,61 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "FileManagerUI",
+            "request": "launch",
+            "mainClass": "FileManagerUI",
+            "projectName": "java_9c99a9cb"
+        },
+        {
+            "type": "java",
+            "name": "TransCoder",
+            "request": "launch",
+            "mainClass": "TransCoder",
+            "projectName": "java_9c99a9cb"
+        },
+        {
+            "type": "java",
+            "name": "FileRenamer",
+            "request": "launch",
+            "mainClass": "FileRenamer",
+            "projectName": "java_518d7ae1"
+        },
+        {
+            "type": "java",
+            "name": "FileManagerUI",
+            "request": "launch",
+            "mainClass": "FileManagerUI",
+            "projectName": "java_518d7ae1"
+        },
+        {
+            "type": "java",
+            "name": "TransCoder",
+            "request": "launch",
+            "mainClass": "TransCoder",
+            "projectName": "java_518d7ae1"
+        },
+        {
+            "type": "java",
+            "name": "FileScanner",
+            "request": "launch",
+            "mainClass": "FileScanner",
+            "projectName": "java_518d7ae1"
+        },
+        {
+            "type": "java",
+            "name": "Jar Export",
+            "request": "launch",
+            "mainClass": "FileManagerUI",
+            "projectName": "FileManagerUI",
+            "args": "",
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole",
+            "outputFormat": "jar"
+        }
+    ]
+}
