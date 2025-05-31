@@ -1,0 +1,91 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "Build Active C++ File",
+            "command": "C:/pro/mingw64-8/bin/g++.exe",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-g",   // 生成调试信息
+                "${file}",
+                "-o",
+                "${fileDirname}\\build\\Release\\${fileBasenameNoExtension}.exe",
+                "-s",
+                "-I${config:open_ssl_350.include_path}",
+                "-I${config:wxWidgets_gcc810.include_path}",
+                "-I${config:wxWidgets_gcc810.setup_path}",
+                "-mwindows",  // 运行时保留 cmd 窗口
+                "-L${config:open_ssl_350.lib_path}",
+                "-L${config:wxWidgets_gcc810.lib_path}",
+                "-llibssl",
+                "-llibcrypto",
+                "-lwxbase32u",
+                "-lwxmsw32u_core",
+                "-lwxmsw32u_stc",
+                "-static"
+            ],
+            "options": {
+                "cwd": "C:/pro/mingw64-8/bin"
+            },
+            "problemMatcher": [
+                "$gcc"  // 捕获 GCC 错误
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Build Active C++ File With Compiler: g++",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "type": "process",
+            "label": "Build And Run Active C++ File",
+            "detail": "Build Active C++ File Firstly, And Then Run Active C++ File",
+            "command": "${fileDirname}\\build\\Release\\${fileBasenameNoExtension}.exe",
+            "dependsOn": [
+                "Build Active C++ File"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "type": "process",
+            "label": "Run Active C++ File",
+            "detail": "Run Active C++ File Directly",
+            "command": "${fileDirname}\\build\\Release\\${fileBasenameNoExtension}.exe",
+            "dependsOn": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Group Task: Build And Run Active C++ File ",
+            "detail": "Group Build And Run Two Task",
+            "dependsOn": [
+                "Build Active C++ File",
+                "Run Active C++ File"
+            ],
+            "group": "none",
+            "problemMatcher": []
+        }
+    ]
+}

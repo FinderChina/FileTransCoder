@@ -1,0 +1,21 @@
+{
+  "configurations": [
+    {
+      "name": "windows-gcc-x64",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "${config:open_ssl_350.include_path}/**",
+        "${config:wxWidgets_gcc810.include_path}/**",
+        "${config:wxWidgets_gcc810.setup_path}/**"
+      ],
+      "compilerPath": "C:/pro/mingw64-8/bin/gcc.exe",
+      "cStandard": "${default}",
+      "cppStandard": "${default}",
+      "intelliSenseMode": "windows-gcc-x64",
+      "compilerArgs": [
+        ""
+      ]
+    }
+  ],
+  "version": 4
+}
