@@ -6,7 +6,6 @@
 <link rel="stylesheet" type="text/css" href="./static/css/cfg.css"/>
 <link rel="stylesheet" type="text/css" href="./static/css/photoswipe.css"/>
 <link rel="stylesheet" type="text/css" href="./static/css/default-skin/default-skin.css"/>
-<link rel="stylesheet" href="./static/fontawesome-free-5.15.4-web/css/all.min.css">
     
 <script type="text/javascript" src="./static/js/jquery-3.7.1.js"></script>
 <script type="text/javascript" src="./static/js/jszip-3.10.1.js"></script>
@@ -15,6 +14,7 @@
 <script type="text/javascript" src="./static/js/photoswipe.js"></script>
 <script type="text/javascript" src="./static/js/photoswipe-ui-default.js"></script>
 <script type="text/javascript" src="./static/js/docx.js"></script>
+<script type="text/javascript" src="./static/js/xlsx.full.min.js"></script>
 <script type="text/javascript" src="./static/js/jschardet.min_3.2.0.js"></script>
 <script type="text/javascript" src="./static/js/require.min_2.3.6.js"></script>
 <script>
@@ -135,6 +135,7 @@ require(['./static/js/iconv-lite-umd_0.6.10.js'], function(iconvLite) {
     position: fixed;
     background: rgba(0, 0, 0, 0.5);
     z-index: 9998;
+    overflow-y: hidden;
 }
 
 .contentClose {
@@ -144,21 +145,137 @@ require(['./static/js/iconv-lite-umd_0.6.10.js'], function(iconvLite) {
     color:#6a6a6a;
     background-color:rgba(0,0,0,.3);
     position: fixed;
-    top: 20px;
+    top: 12px;
     right: 20px;
     border-radius: 50px;
     -webkit-margin-before: 0;
     -webkit-margin-after: 0;
     margin: 0;
     padding: 0;
-    font-size:16px;
     text-align:center;
     line-height:16px;
-    align:center;
     cursor:pointer;
     font-size:20px;
+    opacity: 0.1; 
+    transition: opacity 0.5s ease-in-out;
+    z-index: 999999;
+    align:center;
+    font-size:16px;
 }
 
+.contentClose:hover {
+    cursor:pointer;
+    opacity: 1;
+}
+
+
+/*office sonline viewer*/
+.controls {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 5px;
+    background-color: #f0f0f0;
+    border-radius: 0px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+}
+select {
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+}
+
+#docx-container, #xlsx-container, #pptx-container {
+    width: 98%;
+    min-height: 500px;
+    border: 0px solid #ddd;
+    border-radius: 5px;
+    overflow: auto;
+    padding: 5px;
+    background-color: white;
+}
+#xlsx-container {
+    overflow-x: auto;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+background: white;
+}
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+th {
+    background-color: #f2f2f2;
+}
+.slide-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.slide-nav {
+    display: flex;
+    justify-content: center;
+    margin-top: 15px;
+}
+.slide-nav button {
+    margin: 0 5px;
+    padding: 5px 10px;
+}
+.error {
+    color: red;
+    text-align: center;
+    padding: 20px;
+    font-weight: bold;
+}
+.loading {
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+    color: #666;
+}
+
+
+/* 新增docx-container的样式 */
+#docx-container {
+    width: 98% !important;
+    background-color: #d2d2d2 !important;
+    border: 0px !important;
+}
+
+/* 新增docx-root的样式 */
+.docx-root {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 新增#xlsx-container的样式 */
+.xlsContainer, #pptx-container {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5) !important;
+    background-color: white;
+    margin-top: 45px;
+}
+
+/* 新增docx-root内部div的样式 */
+.docx-root > div {
+    padding: 50px !important;
+}
+
+.fra {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    border: none; /* 无边框 */
+    margin: 0;
+    padding: 0;
+    /* overflow: hidden; 禁用iframe内部滚动条 */
+    display: block;
+}
 </style>
 </head>
 <body>
@@ -200,9 +317,9 @@ require(['./static/js/iconv-lite-umd_0.6.10.js'], function(iconvLite) {
                 <div class="modal-tab" data-tab="about">关于</div>
             </div>
             <div class="right-button-group">
-                <button id="mainConfirmBtn" class="fas fa-check-circle" title="查看配置"/>
-                <!--button id="mainExportBtn" class="fas fa-download" title="打包导出"/-->
-                <button id="mainCancelBtn" class="fas fa-times-circle" title="关闭窗口"/>
+                <button id="mainConfirmBtn" class="fas fa-check-circle" title="查看配置">&#10004; 查看</button>
+                <!--button id="mainExportBtn" class="fas fa-download" title="打包导出"--></button>
+                <button id="mainCancelBtn" class="fas fa-times-circle" title="关闭窗口">&#10006; 关闭</button>
             </div>
         </div>
         
@@ -211,12 +328,12 @@ require(['./static/js/iconv-lite-umd_0.6.10.js'], function(iconvLite) {
             <div class="top-button-container">
                 <div class="left-button-group">
                     <div class="file-input-wrapper">
-                        <span class="file-input-label fas fa-folder-open" title="打开"></span>
+                        <span class="file-input-label fas fa-folder-open" title="打开">&#9730; 打开</span>
                         <input type="file" id="fileInput" accept=".txt,.text,.csv,.json,.xml,.html,.js,.css,.md">
                     </div>
-                    <button id="encodingBtn" class="fas fa-laptop-code" title="文件编码"/>
-                    <button id="gotoLineBtn" class="fas fa-sort-amount-down-alt" title="跳转到行"/>
-                    <button id="viewHashBtn" class="fas fa-water" title="查看哈希"/>
+                    <button id="encodingBtn" class="fas fa-laptop-code" title="文件编码">&#9993; 编码</button>
+                    <button id="gotoLineBtn" class="fas fa-sort-amount-down-alt" title="跳转到行">&#8645; 跳转</button>
+                    <button id="viewHashBtn" class="fas fa-water" title="查看哈希">&#10033; 哈希</button>
                 </div>
             </div>
             
@@ -331,7 +448,10 @@ require(['./static/js/iconv-lite-umd_0.6.10.js'], function(iconvLite) {
         <!-- 关于选项卡 -->
         <div id="aboutTab" class="modal-tab-content">
             <div class="about-content">
-                <h3>文件转码工具(H)</h3>
+                <div class="titleContainer">
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAABNFJREFUWEfVlmtsFFUUx/93pmVboWGrEiwFrUoLiE0bLA9FsFGw+zCl0llLFeisIHww8oiiaVCxEmiiQhsIKaK0s5KocWelCu2sQq2JQRtDg6ZiJKIhWdsQJLo8arePmWvu2tlOt7vbaawh3k8zN+ee8zv/e869l+AGD3KD48M0gMMl7qEanaT4PBvHE9o0gF0QaenS628fbZtS2fR+3Z/jBWEKwFYqvlu69Crc9iv3FFfO+LHZJ603AthLxWcoQaZfll4bK5gpAJb9sd2BNgIs2vtxeskXbRN/UBo9v+jBHIJ4ANDOgHCnJ/TjQigF1pQQgn3JyNIorBxBkM03NkrBaMBRAWyC+NEG5x9dKxZ3b2aLuSTk2V+c8bpflkqMzmyC6PLLkjeeAg6XmN/slb4bMwDLvml34HsK5IGinZ/VUuB8fM0cyiVPbPbVnzYrOQOIpUJCBWyCqOxY+3v7gtmh7eFAFBv5WS2H2KdNEE/5ZWmxWQBmV1IiWqO3IREAsQui1lQd+JlSZOvZ6wGLXKtn8ki6s9krnTALYVslZvk/lC4Y7eMC2AXx0jvPd+3LuEXdGZ297sAuuN9S5IYXxh3Abn/OYrFeDfmqfusEkBmdfaT6V667Q+PUBYmKzwgXqxBjKsAK79Ndge0cwa542UdUKHVXKb6GHezfLog9AK4B0DhCnU1eT7sRwFQNOFzibdZJ6q9HKjtDAEmPl73ueHnx09P4ZJpLiPaeInum6vNOV8V9GiXNGuEXf+Y9fD7eNo1QgGV/vDpQDYrKUbMvExdBxSd0AAv9jcOLa+iQcj9GAY+qDsz5/OiRSwnPAccKMXd6Zv+Jui0XrQAs/xw82mxyV+s540Jn2Zo5qsp/xRGUm+0Cm6tiA6GkBt1pNyvK/l7d3zAFBrM/AIpndQM+p2WEDYA+RZbCgGMZzrJ192qq2qHIUsRn5MMuiK23TlaX1G/rrOE4bhNAJ4SdE1LLZ5/cOtR6In0j37LtlY7eN3tVclmRG6aMBrHMtWFyMu1j9wBlHmMCRAK43F+veviK8tQjwQIC8iiAFEJwjFAcIjktx5lKHzyY+iWArG8uq559P/XtAOh5RfZkxwJh9mxeD8r+EwIMthOlQH9KMk4Uzb92vmBWT9rd0/qnpt1EUbx9umMQoDAsUDLJLm/tXkJB6kHQpnil+3UfxsBGBUcFMGZid7kf0igW8tByKQjr65phAASbJm+u2x8OWuquAqGvxgpsCoAdFMww1r1tdGAEoJRWpW89GHmIREscvS0Jt+B/CQDAa91S90Q8icekALsu2YLoK3NYTQx1QbgIB8dBSi2V6Vtrg/9qC8wCZKQS7J1nkUGIoBMQ4KxG8fKTp3qOGqvcCF/kqnBylByP2wWsBkJJyPfLEuvzuKNQFFNSr6NnZhqHnXkWZhtRY2dHL/Ycrh92ehatdM/jONpOCD3Z7PUsNzoecRnFezzqi4yvmuLy9VP7+wcu5qXzeGnuhLMEmGsEKFq5OoPjkroAckaRG+bFymgEgK4Ce0prQD4oLoAgCzzCqhCNCNDogCJLtbpDR9naHKpy5x6YwiPYR8MKhE9AioDik25PpOaoz/LoxTZBLGRwsZ7YtjJxPlHxLYC/FFmamCiwoXbMmP13NmNWYLxR/gZQW0I/9MHdIQAAAABJRU5ErkJggg=="/>
+                    <h3>文件转码工具(H)</h3>
+                </div>
                 <p>这是一个支持文件内容预览的打包、解压工具，可以对文件内容进行转码加密。</p>
                 
                 <h4>注意事项：</h4>
@@ -344,8 +464,8 @@ require(['./static/js/iconv-lite-umd_0.6.10.js'], function(iconvLite) {
                 </ul>
                 
                 <div class="version-info">
-                    <p>版本: 1.0</p>
-                    <p>日期: 2025-05-31</p>
+                    <p>版本: 1.1</p>
+                    <p>日期: 2025-06-04</p>
                     <p>ByXO</p>
                     <div class="donate">
                         <img class="fixed-right-img alipay" src="data:image/png;base64,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"/>
@@ -667,7 +787,14 @@ function displayImages(imgDataArr){
         appendMp4(newData, imgName);
     }else if(imgName.endsWith("docx")){
         appendDocx(newData, imgName);
-    }else{
+    }else if(imgName.endsWith("xlsx")){
+        appendXlsx(newData, imgName);
+    }else if(imgName.endsWith("pptx")){
+        appendPptx(newData, imgName);
+    }else if(imgName.endsWith("pdf")){
+        appendPdf(newData, imgName);
+    }else{  
+        // 默认都作为图片处理，非图片文件应该单独处理
         var base64 = arrayBufferToBase64(newData);
         appendImg(base64, imgName);
     }
@@ -677,6 +804,7 @@ function displayImages(imgDataArr){
   clearCfgVal();
 }
 
+/*
 // 显示图片
 function appendImg(base64, title){
     //console.log(base64); // 这里是文件的Base64编码
@@ -718,7 +846,7 @@ function appendTs(byteData, title){
         picHtml = picHtml + "' ondblclick='photoSlide(this)' > " //  onmousedown='myDown(this)' onmouseup='myUp(this)'
         picHtml = picHtml + "<video  id='img" + imgSeq + "' src='' title='" + title + "' ";
         picHtml = picHtml + "style='width:" + cssWidth + ";height:" + cssHeight + ";' data-preview-src='' data-preview-group='1' controls /> ";
-        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveImg'>━</div></div>";
+        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveTs'>━</div></div>";
         btnDiv.before(picHtml);  //append  prepend  after  before
         
         if(imgSeq % 100 == 0){
@@ -759,7 +887,7 @@ function appendMp4(byteData, title){
         picHtml = picHtml + "' dblclick='' > " //  onmousedown='myDown(this)' onmouseup='myUp(this)'
         picHtml = picHtml + "<video  id='img" + imgSeq + "' src='" + videoUrl + "' title='" + title + "' loop='loop' poster='./static/img/poster.jpg' ";
         picHtml = picHtml + "style='width:" + cssWidth + ";height:" + cssHeight + ";' data-preview-src='' data-preview-group='1' controls /> ";
-        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveImg'>━</div></div>";
+        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveMp4'>━</div></div>";
         btnDiv.before(picHtml);  //append  prepend  after  before
         
         if(imgSeq % 100 == 0){
@@ -781,15 +909,15 @@ function appendDocx(byteData, title){
         
         //动态添加html元素
         var picHtml = "<div class='imageDiv' id='div" + imgSeq + "' "
-        picHtml = picHtml + "' onclick='showContent(this)' > " //  onmousedown='myDown(this)' onmouseup='myUp(this)'
-        picHtml = picHtml + "<img id='img" + imgSeq + "' src='./static/img/word.jpg' title='" + title + "' ";
+        picHtml = picHtml + "' onclick='showContent(this, 1)' > " //  onmousedown='myDown(this)' onmouseup='myUp(this)'
+        picHtml = picHtml + "<img id='img" + imgSeq + "' src='./static/img/word.png' title='" + title + "' ";
         picHtml = picHtml + "style='cursor:pointer; width:" + cssWidth + "; height:" + cssHeight + ";' /> ";
-        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveImg'>━</div></div>";
+        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveDocx'>━</div></div>";
         btnDiv.before(picHtml);  //append  prepend  after  before
         
-        var docHtml = "<div class='contentMask' id='docMask" + imgSeq +"' ondblclick=hideContent('" + imgSeq + "')>";
+        var docHtml = "<div class='contentMask' id='docMask" + imgSeq +"' ondblclick=hideDocContent('" + imgSeq + "')>";
         docHtml = docHtml + "<div id='app" + imgSeq +"'></div>";
-        docHtml = docHtml + "<div class='contentClose' onclick=hideContent('" + imgSeq + "') title='HideContentViewer'>×</div></div>";
+        docHtml = docHtml + "<div class='contentClose' onclick=hideDocContent('" + imgSeq + "') title='HideContentViewer'>×</div></div>";
         $("body").append(docHtml);
         
         var docObj = document.getElementById('app' + imgSeq);
@@ -803,6 +931,401 @@ function appendDocx(byteData, title){
             showWaitMessageBox(msg , 3);
         }
     }
+}
+            
+// 显示xlsx文件
+function appendXlsx(byteData, title){
+    if (byteData && byteData.length > 10) {
+        imgIdx++;
+        imgSeq++;
+
+        //动态添加html元素
+        var picHtml = "<div class='imageDiv' id='div" + imgSeq + "' "
+        picHtml = picHtml + "' onclick='showContent(this, 2)' > " //  onmousedown='myDown(this)' onmouseup='myUp(this)'
+        picHtml = picHtml + "<img id='img" + imgSeq + "' src='./static/img/excel.png' title='" + title + "' ";
+        picHtml = picHtml + "style='cursor:pointer; width:" + cssWidth + "; height:" + cssHeight + ";' /> ";
+        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemoveXlsx'>━</div></div>";
+        btnDiv.before(picHtml);  //append  prepend  after  before
+        
+        var xlsHtml = "<div class='contentMask' id='xlsMask" + imgSeq +"' ondblclick=hideXlsContent('" + imgSeq + "')>";
+        xlsHtml = xlsHtml + "<div class='controls' id='xlsx-controls" + imgSeq +"'>";
+        xlsHtml = xlsHtml + "  <div>";
+        xlsHtml = xlsHtml + "    <label for='sheet-select'>选择工作表: </label>";
+        xlsHtml = xlsHtml + "    <select id='sheet-select" + imgSeq +"'></select>";
+        xlsHtml = xlsHtml + "  </div>";
+        xlsHtml = xlsHtml + "  <div id='sheet-info" + imgSeq +"' style='margin-right: 60px;'></div>";
+        xlsHtml = xlsHtml + "</div>";
+        xlsHtml = xlsHtml + "<div id='xlsx-container" + imgSeq +"' class='xlsContainer'></div>";
+        xlsHtml = xlsHtml + "<div class='contentClose' onclick=hideXlsContent('" + imgSeq + "') title='HideContentViewer'>×</div></div>";
+        $("body").append(xlsHtml);
+        
+        const xlsxContainer = document.getElementById('xlsx-container' + imgSeq);
+        const xlsxControls = document.getElementById('xlsx-controls' + imgSeq);
+        const sheetSelect = document.getElementById('sheet-select' + imgSeq);
+        const sheetInfo = document.getElementById('sheet-info' + imgSeq);
+        
+        xlsxContainer.style.display = 'block';
+        xlsxControls.style.display = 'flex';
+
+        const workbook = XLSX.read(byteData, { type: 'array' });
+        
+        // 填充工作表下拉框
+        sheetSelect.innerHTML = '';
+        workbook.SheetNames.forEach((name, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = name;
+            sheetSelect.appendChild(option);
+        });
+        
+        // 显示第一个工作表
+        displaySheet(0);
+        sheetInfo.textContent = `共 ${workbook.SheetNames.length} 个工作表`;
+        
+        // 切换工作表事件
+        sheetSelect.addEventListener('change', function() {
+            const sheetIndex = parseInt(this.value);
+            displaySheet(sheetIndex);
+        });
+        
+        function displaySheet(sheetIndex) {
+            const worksheet = workbook.Sheets[workbook.SheetNames[sheetIndex]];
+            const html = XLSX.utils.sheet_to_html(worksheet, {
+                editable: false,
+                header: ''
+            });
+            
+            xlsxContainer.innerHTML = html;
+            
+            // 为表格添加样式
+            const tables = xlsxContainer.getElementsByTagName('table');
+            for (let table of tables) {
+                table.style.width = 'auto';
+                table.style.minWidth = '100%';
+            }
+        }
+        
+        if(imgSeq % 100 == 0){
+            var msg = imgSeq + " files loaded.";
+            console.log(msg);
+            showWaitMessageBox(msg , 3);
+        }
+    }
+}
+
+// 显示pptx文件
+function appendPptx(byteData, title){
+    if (byteData && byteData.length > 10) {
+        imgIdx++;
+        imgSeq++;
+        
+        // 将Uint8Array转换为Blob对象
+        //let videoBlob = new Blob([byteData], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+        // 创建一个指向这个Blob的URL
+        //let url = URL.createObjectURL(videoBlob);
+        
+        //动态添加html元素
+        var picHtml = "<div class='imageDiv' id='div" + imgSeq + "' "
+        picHtml = picHtml + "' onclick='showContent(this, 3)' > " //  onmousedown='myDown(this)' onmouseup='myUp(this)'
+        picHtml = picHtml + "<img id='img" + imgSeq + "' src='./static/img/powerpoint.png' title='" + title + "' ";
+        picHtml = picHtml + "style='cursor:pointer; width:" + cssWidth + "; height:" + cssHeight + ";' /> ";
+        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemovePptx'>━</div></div>";
+        btnDiv.before(picHtml);  //append  prepend  after  before
+        // scrolling='no'
+        var docHtml = "<div class='contentMask' id='pptMask" + imgSeq +"' ondblclick=hidePptContent('" + imgSeq + "')>";
+        docHtml = docHtml + "<iframe frameborder='0' allowfullscreen class='fra' id='app" + imgSeq +"' src='./viewer/ppt/index.html'></iframe>";  //?file=" + url + "
+        docHtml = docHtml + "<div class='contentClose' onclick=hidePptContent('" + imgSeq + "') title='HideContentViewer'>×</div></div>";
+        $("body").append(docHtml);
+        
+        // 确保 iframe 加载完成
+        var iframeObj = document.getElementById('app' + imgSeq);
+        iframeObj.onload = function() {
+            iframeObj.contentWindow.viewPptData(byteData);
+        };
+
+        if(imgSeq % 100 == 0){
+            var msg = imgSeq + " files loaded.";
+            console.log(msg);
+            showWaitMessageBox(msg , 3);
+        }
+    }
+}
+
+// 显示pdf文件
+// https://mozilla.github.io/pdf.js/getting_started/#download
+function appendPdf(byteData, title){
+    if (byteData && byteData.length > 10) {
+        imgIdx++;
+        imgSeq++;
+        
+        // 将Uint8Array转换为Blob对象
+        let blob = new File([byteData], { type: 'application/pdf;charset-UTF-8' });
+         
+        // 创建一个指向这个Blob的URL
+        let blobUrl = window.URL.createObjectURL(blob);
+        //console.log(blobUrl);
+        
+        //动态添加html元素
+        var picHtml = "<div class='imageDiv' id='div" + imgSeq + "' "
+        picHtml = picHtml + "' onclick='showContent(this, 4)' > " //  onmousedown='myDown(this)' onmouseup='myUp(this)'
+        picHtml = picHtml + "<img id='img" + imgSeq + "' src='./static/img/pdf.png' title='" + title + "' ";
+        picHtml = picHtml + "style='cursor:pointer; width:" + cssWidth + "; height:" + cssHeight + ";' /> ";
+        picHtml = picHtml + "<div class='cover' onclick='delFile(this)' title='RemovePdf'>━</div></div>";
+        btnDiv.before(picHtml);  //append  prepend  after  before
+        // scrolling='no'
+        var docHtml = "<div class='contentMask' id='pdfMask" + imgSeq +"' ondblclick=hidePdfContent('" + imgSeq + "')>";
+        docHtml = docHtml + "<iframe frameborder='0' allowfullscreen class='fra' id='app" + imgSeq +"' src='./viewer/pdf/web/viewer.html?file=" + blobUrl + "'></iframe>";
+        docHtml = docHtml + "<div class='contentClose' onclick=hidePdfContent('" + imgSeq + "') title='HideContentViewer'>×</div></div>";
+        $("body").append(docHtml);
+        
+        if(imgSeq % 100 == 0){
+            var msg = imgSeq + " files loaded.";
+            console.log(msg);
+            showWaitMessageBox(msg , 3);
+        }
+    }
+}
+//*/
+
+// 以下的各个 “appendXyz” 方法是通过大模型自动根据上面的方法优化得到
+// Common function to create and append file elements
+function createFileElement(type, data, title, clickHandlerType = 0) {
+    if (!data || data.length <= 10) return null;
+
+    imgIdx++;
+    imgSeq++;
+
+    // Determine icon and handler based on file type
+    const fileConfig = {
+        img: {
+            icon: `data:image/jpeg;base64,${data}`,
+            clickHandler: "photoSlide(this)",
+            coverTitle: "RemoveImg"
+        },
+        ts: {
+            icon: "",
+            clickHandler: "",
+            coverTitle: "RemoveTs"
+        },
+        mp4: {
+            icon: "",
+            clickHandler: "",
+            coverTitle: "RemoveMp4"
+        },
+        docx: {
+            icon: "./static/img/word.png",
+            clickHandler: `showContent(this, ${clickHandlerType})`,
+            coverTitle: "RemoveDocx"
+        },
+        xlsx: {
+            icon: "./static/img/excel.png",
+            clickHandler: `showContent(this, ${clickHandlerType})`,
+            coverTitle: "RemoveXlsx"
+        },
+        pptx: {
+            icon: "./static/img/powerpoint.png",
+            clickHandler: `showContent(this, ${clickHandlerType})`,
+            coverTitle: "RemovePptx"
+        },
+        pdf: {
+            icon: "./static/img/pdf.png",
+            clickHandler: `showContent(this, ${clickHandlerType})`,
+            coverTitle: "RemovePdf"
+        }
+    };
+
+    const config = fileConfig[type];
+    if (!config) return null;
+
+    // 图片特有属性
+    let slidePreview = '';
+    if (type === 'img') {
+        slidePreview = " isImg='1' data-preview-src='' data-preview-group='1' ";
+    }
+    // Create the main file element HTML
+    const elementHtml = `
+        <div class='imageDiv' id='div${imgSeq}' ondblclick='${config.clickHandler}'>
+            ${type === 'ts' || type === 'mp4' ? 
+                `<video id='img${imgSeq}' src='' title='${title}' style='width:${cssWidth};height:${cssHeight};' controls />` :
+                `<img id='img${imgSeq}' src='${config.icon}' title='${title}' style='cursor:pointer; width:${cssWidth}; height:${cssHeight};'${slidePreview} />`
+            }
+            <div class='cover' onclick='delFile(this)' title='${config.coverTitle}'>━</div>
+        </div>
+    `;
+
+    btnDiv.before(elementHtml);
+
+    // Show progress every 100 files
+    if (imgSeq % 100 === 0) {
+        const msg = `${imgSeq} files loaded.`;
+        console.log(msg);
+        showWaitMessageBox(msg, 3);
+    }
+
+    return { id: imgSeq, element: document.getElementById(`img${imgSeq}`) };
+}
+
+// Common function to create content mask
+function createContentMask(type, id, contentHtml = '', clickHideType = 0) {
+    const maskHtml = `
+        <div class='contentMask' id='${type}Mask${id}' ondblclick='hideContent("${id}", ${clickHideType})'>
+            ${contentHtml}
+            <div class='contentClose' onclick='hideContent("${id}", ${clickHideType})' title='HideContentViewer'>×</div>
+        </div>
+    `;
+    $("body").append(maskHtml);
+}
+
+// 显示图片
+function appendImg(base64, title) {
+    const fileInfo = createFileElement('img', base64, title);
+    if (!fileInfo) return;
+
+    // Additional image-specific setup if needed
+}
+
+// 显示ts文件
+function appendTs(byteData, title) {
+    const fileInfo = createFileElement('ts', byteData, title);
+    if (!fileInfo) return;
+
+    // Create Blob and URL for TS video
+    const videoBlob = new Blob([byteData], { type: 'application/x-mpegURL' });
+    const videoUrl = URL.createObjectURL(videoBlob);
+    const videoObj = fileInfo.element;
+
+    if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(videoUrl);
+        hls.attachMedia(videoObj);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => videoObj.play());
+    } else if (videoObj.canPlayType('application/vnd.apple.mpegurl')) {
+        videoObj.src = videoUrl;
+        videoObj.addEventListener('canplay', () => videoObj.play());
+    }
+}
+
+// 显示mp4文件
+function appendMp4(byteData, title) {
+    const fileInfo = createFileElement('mp4', byteData, title);
+    if (!fileInfo) return;
+
+    // Create Blob and URL for MP4 video
+    const videoBlob = new Blob([byteData], { type: 'video/mp4' });
+    const videoUrl = URL.createObjectURL(videoBlob);
+    fileInfo.element.src = videoUrl;
+    fileInfo.element.loop = true;
+    fileInfo.element.poster = './static/img/poster.jpg';
+}
+
+// 显示docx文件
+function appendDocx(byteData, title) {
+    const fileInfo = createFileElement('docx', byteData, title, 1);
+    if (!fileInfo) return;
+
+    // Create content mask for DOCX
+    createContentMask('doc', fileInfo.id, `<div id='app${fileInfo.id}'></div>`, 1);
+    
+    const docObj = document.getElementById(`app${fileInfo.id}`);
+    const docBlob = new Blob([byteData], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    
+    Docx.docx2HTML(docBlob).then(docx => {
+        docx.toHTML(docObj);
+    });
+}
+
+// 显示xlsx文件
+function appendXlsx(byteData, title) {
+    const fileInfo = createFileElement('xlsx', byteData, title, 2);
+    if (!fileInfo) return;
+
+    // Create content mask for XLSX
+    const xlsHtml = `
+        <div class='controls' id='xlsx-controls${fileInfo.id}'>
+            <div>
+                <label for='sheet-select'>选择工作表: </label>
+                <select id='sheet-select${fileInfo.id}'></select>
+            </div>
+            <div id='sheet-info${fileInfo.id}' style='margin-right: 60px;'></div>
+        </div>
+        <div id='xlsx-container${fileInfo.id}' class='xlsContainer'></div>
+    `;
+    createContentMask('xls', fileInfo.id, xlsHtml, 2);
+
+    // XLSX processing
+    const xlsxContainer = document.getElementById(`xlsx-container${fileInfo.id}`);
+    const xlsxControls = document.getElementById(`xlsx-controls${fileInfo.id}`);
+    const sheetSelect = document.getElementById(`sheet-select${fileInfo.id}`);
+    const sheetInfo = document.getElementById(`sheet-info${fileInfo.id}`);
+
+    xlsxContainer.style.display = 'block';
+    xlsxControls.style.display = 'flex';
+
+    const workbook = XLSX.read(byteData, { type: 'array' });
+
+    // Fill sheet dropdown
+    sheetSelect.innerHTML = '';
+    workbook.SheetNames.forEach((name, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = name;
+        sheetSelect.appendChild(option);
+    });
+
+    // Display first sheet
+    displaySheet(0);
+    sheetInfo.textContent = `共 ${workbook.SheetNames.length} 个工作表`;
+
+    // Sheet change event
+    sheetSelect.addEventListener('change', function() {
+        displaySheet(parseInt(this.value));
+    });
+
+    function displaySheet(sheetIndex) {
+        const worksheet = workbook.Sheets[workbook.SheetNames[sheetIndex]];
+        const html = XLSX.utils.sheet_to_html(worksheet, {
+            editable: false,
+            header: ''
+        });
+        
+        xlsxContainer.innerHTML = html;
+        
+        // Style tables
+        const tables = xlsxContainer.getElementsByTagName('table');
+        for (let table of tables) {
+            table.style.width = 'auto';
+            table.style.minWidth = '100%';
+        }
+    }
+}
+
+// 显示pptx文件
+// https://mozilla.github.io/pdf.js/getting_started/#download
+function appendPptx(byteData, title) {
+    const fileInfo = createFileElement('pptx', byteData, title, 3);
+    if (!fileInfo) return;
+
+    // Create content mask for PPTX
+    createContentMask('ppt', fileInfo.id, `<iframe frameborder='0' allowfullscreen class='fra' id='app${fileInfo.id}' src='./viewer/ppt/index.html'></iframe>`, 3);
+    
+    // Setup iframe
+    const iframeObj = document.getElementById(`app${fileInfo.id}`);
+    iframeObj.onload = function() {
+        iframeObj.contentWindow.viewPptData(byteData);
+    };
+}
+
+// 显示pdf文件
+function appendPdf(byteData, title) {
+    const fileInfo = createFileElement('pdf', byteData, title, 4);
+    if (!fileInfo) return;
+
+    // Create Blob and URL for PDF
+    const blob = new Blob([byteData], { type: 'application/pdf' });
+    const blobUrl = URL.createObjectURL(blob);
+
+    // Create content mask for PDF
+    createContentMask('pdf', fileInfo.id, `<iframe frameborder='0' allowfullscreen class='fra' id='app${fileInfo.id}' src='./viewer/pdf/web/viewer.html?file=${blobUrl}'></iframe>` , 4);
 }
 
 // 二进制转base64编码
@@ -911,15 +1434,16 @@ function delFile(obj){
 }
 
 //显示内容
-function showContent(obj){
+const maskType =  ['doc', 'xls', 'ppt', 'pdf'];
+function showContent(obj, idx){
     var imgSeq = $(obj).attr("id").replace("div", "");
-    $("#docMask"+imgSeq).css("overflow-y", "auto");
-    $("#docMask"+imgSeq).show();
+    $("#"+maskType[idx-1]+"Mask"+imgSeq).css("overflow-y", "auto");
+    $("#"+maskType[idx-1]+"Mask"+imgSeq).show();
 }
 
 //隐藏内容
-function hideContent(imgSeq){
-    $("#docMask"+imgSeq).hide();
+function hideContent(imgSeq, idx){
+    $("#"+maskType[idx-1]+"Mask"+imgSeq).hide();
 }
 
 //设置密码
@@ -967,6 +1491,14 @@ function getFnPuppet(fn){
 function localSha512(msg){
     hash = CryptoJS.SHA512(msg);
     return hash.toString(CryptoJS.enc.Hex);
+    /*
+    var byteArray = hash.toString(CryptoJS.enc.Latin1); // 获取原始字节字符串
+    var uint8Array = new Uint8Array(byteArray.length);
+    for (var i = 0; i < byteArray.length; i++) {
+        uint8Array[i] = byteArray.charCodeAt(i);
+    }
+    console.log(uint8Array.length); // 64
+    //*/
 }
 
 // 对于不支持Web Crypto API的旧浏览器，需要引入第三方库（如jssha）来实现SHA-512加密。
@@ -1325,14 +1857,15 @@ function photoSlide(obj){
         }); //*/
         var imgs = new Image();
         imgs.src=imgObj.attr('src');
- 
-        items.push({
-            src:imgObj.attr('src'),
-            w: imgs.width,
-            h: imgs.height,
-            title: imgObj.attr('title')
-        });
-        idx++;
+        if (imgObj.attr('isImg') === "1") {
+            items.push({
+                src:imgObj.attr('src'),
+                w: imgs.width,
+                h: imgs.height,
+                title: imgObj.attr('title')
+            });
+            idx++;
+        }
     });
         
     // define options (if needed)
