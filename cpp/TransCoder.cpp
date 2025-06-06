@@ -10,8 +10,13 @@
 #include <wx/sstream.h>
 #include <wx/textfile.h>
 #include <wx/menu.h>
+#include <wx/filepicker.h> // Required for wxDirPickerCtrl
+#include <wx/listctrl.h>   // Required for wxListCtrl
 #include <wx/artprov.h>
 #include <wx/fontmap.h>
+#include <wx/fileconf.h>  // 用于 wxFileConfig
+#include <wx/txtstrm.h>   // 用于 wxTextInputStream 和 wxTextOutputStream
+#include <wx/wfstream.h>  // 用于 wxFileInputStream 和 wxFileOutputStream
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
 #include <wx/statline.h>
@@ -825,6 +830,296 @@ private:
     }
 };
 
+struct SvrConfigEntry {
+    wxString address;
+    wxString directory;
+    bool enableListing;
+    bool enableVideo;
+};
+
+class SvrConfigEntryDialog : public wxDialog {
+public:
+    SvrConfigEntryDialog(wxWindow* parent, const wxString& title)
+        : wxDialog(parent, wxID_ANY, title, wxDefaultPosition, wxSize(400, 300)) {
+            
+        wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
+        
+        // Address
+        mainSizer->Add(new wxStaticText(this, wxID_ANY, wxT("访问地址")), 0, wxALL, 5);
+        m_address = new wxTextCtrl(this, wxID_ANY);
+        mainSizer->Add(m_address, 0, wxEXPAND | wxALL, 5);
+        
+        // Directory
+        mainSizer->Add(new wxStaticText(this, wxID_ANY, wxT("文件路径")), 0, wxALL, 5);
+        m_dirPicker = new wxDirPickerCtrl(this, wxID_ANY);
+        mainSizer->Add(m_dirPicker, 0, wxEXPAND | wxALL, 5);
+        
+        // Checkboxes
+        m_listingCheck = new wxCheckBox(this, wxID_ANY, wxT("启用目录列表"));
+        m_videoCheck = new wxCheckBox(this, wxID_ANY, wxT("支持视频播放"));
+        
+        mainSizer->Add(m_listingCheck, 0, wxALL, 5);
+        mainSizer->Add(m_videoCheck, 0, wxALL, 5);
+        
+        // Buttons
+        wxBoxSizer* btnSizer = new wxBoxSizer(wxHORIZONTAL);
+        btnSizer->Add(new wxButton(this, wxID_OK, wxT("保存")), 0, wxALL, 5);
+        btnSizer->Add(new wxButton(this, wxID_CANCEL, wxT("关闭")), 0, wxALL, 5);
+        
+        mainSizer->Add(btnSizer, 0, wxALIGN_CENTER | wxALL, 5);
+        
+        SetSizer(mainSizer);
+        Layout();
+        
+        Bind(wxEVT_BUTTON, &SvrConfigEntryDialog::OnOK, this, wxID_OK);
+    }
+
+    wxString GetAddress() const { return m_address->GetValue(); }
+    wxString GetDirectory() const { return m_dirPicker->GetPath(); }
+    bool IsListingEnabled() const { return m_listingCheck->GetValue(); }
+    bool IsVideoEnabled() const { return m_videoCheck->GetValue(); }
+
+    void SetValues(const wxString& address, const wxString& dir, bool listing, bool video) {
+        m_address->SetValue(address);
+        m_dirPicker->SetPath(dir);
+        m_listingCheck->SetValue(listing);
+        m_videoCheck->SetValue(video);
+    }
+
+private:
+    wxTextCtrl* m_address;
+    wxDirPickerCtrl* m_dirPicker;
+    wxCheckBox* m_listingCheck;
+    wxCheckBox* m_videoCheck;
+    
+    void OnOK(wxCommandEvent& event) {
+        if (m_address->GetValue().IsEmpty()) {
+            wxMessageBox(wxT("访问地址不能为空。"), wxT("提示"), wxOK | wxICON_INFORMATION, this);
+            return;
+        }
+        
+        if (m_dirPicker->GetPath().IsEmpty()) {
+            wxMessageBox(wxT("文件路径不能为空。"), wxT("提示"), wxOK | wxICON_INFORMATION, this);
+            return;
+        }
+        
+        event.Skip(); // Continue with OK processing
+    }
+};
+
+class SvrConfigDialog : public wxDialog {
+public:
+    SvrConfigDialog(wxWindow* parent, const wxString& title, 
+                            const wxString& configFile, const wxString& templateFile, const wxString& outputFile)
+        : wxDialog(parent, wxID_ANY, title, wxDefaultPosition, wxSize(800, 400)),
+        m_configFile(configFile), m_templateFile(templateFile), m_outputFile(outputFile) {
+        
+        wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
+        
+        // Buttons
+        wxBoxSizer* btnSizer = new wxBoxSizer(wxHORIZONTAL);
+        btnSizer->Add(new wxButton(this, wxID_ADD, wxT("新增")), 0, wxALL, 5);
+        btnSizer->Add(new wxButton(this, wxID_DELETE, wxT("删除")), 0, wxALL, 5);
+        btnSizer->Add(new wxButton(this, wxID_APPLY, wxT("应用")), 0, wxALL, 5);
+        btnSizer->Add(new wxButton(this, wxID_OPEN, wxT("打开")), 0, wxALL, 5);
+        
+        mainSizer->Add(btnSizer, 0, wxALIGN_LEFT | wxALL, 5);
+        
+        // List control
+        m_listCtrl = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,   wxLC_REPORT | wxLC_SINGLE_SEL);
+        m_listCtrl->AppendColumn(wxT("访问地址"), wxLIST_FORMAT_LEFT, 100);
+        m_listCtrl->AppendColumn(wxT("文件路径"), wxLIST_FORMAT_LEFT, 520);
+        m_listCtrl->AppendColumn(wxT("文件列表"), wxLIST_FORMAT_CENTER, 80);
+        m_listCtrl->AppendColumn(wxT("视频播放"), wxLIST_FORMAT_CENTER, 80);
+        
+        mainSizer->Add(m_listCtrl, 1, wxEXPAND | wxALL, 5);
+        
+        SetSizer(mainSizer);
+        Layout();
+        
+        // Load config
+        LoadConfig();
+        UpdateList();
+        
+        // Event bindings
+        Bind(wxEVT_BUTTON, &SvrConfigDialog::OnAdd, this, wxID_ADD);
+        Bind(wxEVT_BUTTON, &SvrConfigDialog::OnDelete, this, wxID_DELETE);
+        Bind(wxEVT_BUTTON, &SvrConfigDialog::OnApply, this, wxID_APPLY);
+        Bind(wxEVT_BUTTON, &SvrConfigDialog::OnOpen, this, wxID_OPEN);
+        m_listCtrl->Bind(wxEVT_LIST_ITEM_SELECTED, &SvrConfigDialog::OnDeleteItem, this);
+        m_listCtrl->Bind(wxEVT_LIST_ITEM_RIGHT_CLICK, &SvrConfigDialog::OnRightClick, this);
+    }
+
+private:
+    wxString m_configFile;
+    wxString m_templateFile;
+    wxString m_outputFile;
+    wxListCtrl* m_listCtrl;
+    std::vector<SvrConfigEntry> m_entries;
+    int selectedItemIndex = -1;
+
+    void LoadConfig() {
+        m_entries.clear();
+        
+        wxFileConfig config("", "", m_configFile);
+        long index = 0;
+        wxString entryPath;
+        
+        while (config.GetNextGroup(entryPath, index)) {
+            config.SetPath(entryPath);
+            
+            SvrConfigEntry entry;
+            entry.address = config.Read("Address", "");
+            entry.directory = config.Read("Directory", "");
+            entry.enableListing = config.ReadBool("EnableListing", false);
+            entry.enableVideo = config.ReadBool("EnableVideo", false);
+            
+            m_entries.push_back(entry);
+            config.SetPath("..");
+        }
+    }
+
+    void SaveConfig() {
+        wxFileConfig config("", "", m_configFile);
+        config.DeleteAll();
+        
+        for (size_t i = 0; i < m_entries.size(); ++i) {
+            wxString group = wxString::Format("/Entry%zu", i);
+            config.SetPath(group);
+            
+            config.Write("Address", m_entries[i].address);
+            config.Write("Directory", m_entries[i].directory);
+            config.Write("EnableListing", m_entries[i].enableListing);
+            config.Write("EnableVideo", m_entries[i].enableVideo);
+            
+            config.SetPath("..");
+        }
+        
+        config.Flush();
+    }
+
+    void ApplyConfig() {
+        wxString output= wxT("");
+        for (const auto& entry : m_entries) {
+            output += GetConfig(entry) + "\n\n";
+        }
+        
+        // Replace ######## with our content
+        wxString content;
+        wxFileInputStream input(m_templateFile);
+        if (input.IsOk()) {
+            wxTextInputStream text(input);
+            while (!input.Eof()) {
+                content += text.ReadLine() + "\n";
+            }
+        }
+        
+        content.Replace("########", output);
+        
+        wxFileOutputStream outputStream(m_outputFile);
+        if (outputStream.IsOk()) {
+            wxTextOutputStream out(outputStream);
+            out << content;
+        }
+    }
+
+    wxString GetConfig(const SvrConfigEntry& entry) {
+        // 将目录路径中的反斜杠替换为正斜杠
+        wxString normalizedDir = entry.directory;
+        normalizedDir.Replace("\\", "/");
+
+        return wxString::Format(
+            "        location /%s/ {\n"
+            "            alias   %s/;\n"
+            "            index  index.html index.htm;\n"
+            "%s"  // 条件化的 Accept-Ranges 头部
+            "            autoindex %s;\n"
+            "            autoindex_exact_size off;\n"
+            "            autoindex_localtime on;\n"
+            "        }",
+            entry.address,
+            normalizedDir, 
+            entry.enableVideo ? "            add_header Accept-Ranges bytes;\n" : "",
+            entry.enableListing ? "on" : "off"
+        );
+    }
+
+    void UpdateList() {
+        m_listCtrl->DeleteAllItems();
+        
+        for (size_t i = 0; i < m_entries.size(); ++i) {
+            const auto& entry = m_entries[i];
+            long item = m_listCtrl->InsertItem(i, entry.address);
+            m_listCtrl->SetItem(item, 1, entry.directory);
+            m_listCtrl->SetItem(item, 2, entry.enableListing ? wxT("是") : wxT("否"));
+            m_listCtrl->SetItem(item, 3, entry.enableVideo ? wxT("是") : wxT("否"));
+        }
+    }
+
+    void OnAdd(wxCommandEvent& event) {
+        SvrConfigEntryDialog dlg(this, wxT("新增服务访问地址"));
+        if (dlg.ShowModal() == wxID_OK) {
+            SvrConfigEntry entry;
+            entry.address = dlg.GetAddress();
+            entry.directory = dlg.GetDirectory();
+            entry.enableListing = dlg.IsListingEnabled();
+            entry.enableVideo = dlg.IsVideoEnabled();
+            
+            m_entries.push_back(entry);
+            SaveConfig();
+            UpdateList();
+        }
+    }
+
+    void OnDelete(wxCommandEvent& event) {
+        if (selectedItemIndex >= 0 && selectedItemIndex < (int)m_entries.size()) {
+            if(wxMessageBox(wxT("确定要删除选中的访问地址？"), wxT("确认"), wxYES_NO | wxICON_QUESTION, this) != wxYES) {
+                return;
+            }
+            m_entries.erase(m_entries.begin() + selectedItemIndex);
+            SaveConfig();
+            UpdateList();
+        } else {
+            wxMessageBox(wxT("请选择要删除的访问地址。"), wxT("提示"), wxOK | wxICON_INFORMATION, this);
+        }
+    }
+
+    void OnApply(wxCommandEvent& event) {
+        if (!wxFileExists(m_templateFile)) {
+            wxMessageBox(wxT("配置文件不存在，请先部署服务。"), wxT("提示"), wxOK | wxICON_INFORMATION);
+            return;
+        }
+        ApplyConfig();
+        wxMessageBox(wxT("服务配置信息应用成功。"), wxT("提示"), wxOK | wxICON_INFORMATION, this);
+    }
+
+    void OnOpen(wxCommandEvent& event) {
+        if (selectedItemIndex >= 0 && selectedItemIndex < (int)m_entries.size()) {
+            std::wstring address = m_entries[selectedItemIndex].address.ToStdWstring();  //ToStdWstring() 或 wc_str()
+            std::wstring url = L"http://localhost/" + address + L"/";
+            ShellExecuteW(
+                NULL,               // 无父窗口
+                L"open",           // 操作类型（"open" 表示用默认程序打开）
+                url.c_str(),       // URL
+                NULL,              // 无参数
+                NULL,              // 使用当前工作目录
+                SW_SHOWNORMAL      // 正常显示窗口
+            );
+        } else {
+            wxMessageBox(wxT("请选择要打开的访问地址。"), wxT("提示"), wxOK | wxICON_INFORMATION, this);
+        }
+    }
+
+    void OnDeleteItem(wxListEvent& event) {
+        selectedItemIndex = event.GetIndex();
+    }
+
+    void OnRightClick(wxListEvent& event) {
+        wxLogMessage("Right-click on item: %ld", event.GetIndex());
+        event.Skip();
+    }
+};
+
 class MainFrame : public wxFrame {
 public:
     MainFrame() : wxFrame(nullptr, wxID_ANY, wxT("文件转码工具【XO】"), wxDefaultPosition, wxSize(1000, 800)) {
@@ -847,9 +1142,9 @@ public:
         // 服务菜单
         wxMenu* serverMenu = new wxMenu();
         serverMenu->Append(wxID_HELP_INDEX, wxT("部署\tCtrl+D"));
-        //serverMenu->Append(wxID_HELP_COMMANDS, wxT("配置\tCtrl+C"));
+        serverMenu->Append(wxID_HELP_COMMANDS, wxT("配置\tCtrl+C"));
         serverMenu->Append(wxID_HELP_SEARCH, wxT("启动\tCtrl+S"));
-        //serverMenu->Append(wxID_HELP_PROCEDURES, wxT("停止\tCtrl+H"));
+        serverMenu->Append(wxID_HELP_PROCEDURES, wxT("停止\tCtrl+H"));
 
         // 帮助菜单
         wxMenu* helpMenu = new wxMenu();
@@ -974,10 +1269,11 @@ private:
                 std::unique_ptr<wxZipEntry> entry(zip.GetNextEntry());
                 while (entry != nullptr) {
                     wxString fullPath = path + "/" + entry->GetName();
+                    fullPath.Replace("/", "\\");  // 将正斜杠替换为反斜杠
                     wxFileName::Mkdir(wxFileName(fullPath).GetPath(), 0777, wxPATH_MKDIR_FULL);
                     
                     wxString relPath = entry->GetName();
-                    relPath.Replace("\\", "/");
+                    relPath.Replace("/", "\\");
                     LogMessage(wxString::Format(wxT("部署文件 %d：%s"), idx++, relPath));  //entry->GetName()
 
                     wxFFileOutputStream out(fullPath);
@@ -988,7 +1284,7 @@ private:
                 }
                 
                 LogMessage(wxT("部署完成: ") + path);
-                LogMessage(wxT("默认服务根目录：") +  path + wxT("..\\..\\..\\..\\html/"));
+                LogMessage(wxT("默认服务根目录：") +  path + wxT("..\\..\\Html\\"));
                 LogMessage(wxT("默认服务配置文件：") + path + wxT("\\conf\\nginx.conf"));
                 LogMessage(wxT("请点击“启动”菜单启动服务。"));
 
@@ -999,7 +1295,12 @@ private:
     }
 
     void OnSvrConfig(wxCommandEvent& event) {
-
+        std::wstring path = getExeDirW();
+        std::wstring cfg = path + L"\\svr.cfg";
+        std::wstring tpl = path + L"\\svr\\conf\\cfg.tpl";
+        std::wstring ngx = path + L"\\svr\\conf\\nginx.conf";
+        SvrConfigDialog dlg(this, wxT("服务访问地址配置"), cfg, tpl, ngx);
+        dlg.ShowModal();
     }
 
     void OnSvrStart(wxCommandEvent& event) {
@@ -1039,7 +1340,10 @@ private:
     }
 
     void OnSvrStop(wxCommandEvent& event) {
-
+        const std::wstring nginxProcessName = L"nginx.exe";
+        if (!killProcessByName(nginxProcessName)) {
+            LogMessage(wxT("没有找到运行的Nginx进程。"));
+        }
     }
     
     void OnDonate(wxCommandEvent& event) {
@@ -1510,7 +1814,7 @@ private:
     }
     
     void OnAbout(wxCommandEvent& event) {
-        wxMessageBox(wxT("文件转码工具(C)\n版本 1.0\n2025-05-31\nByXO\n\n"
+        wxMessageBox(wxT("文件转码工具(C)\n版本 1.1\n2025-06-01\nByXO\n\n"
                          "1、通过可配置的初始编码、循环次数，多次分别获取SHA512编码，，拼接成转码编码。\n"
                          "2、打包和解压文件时，对文件内容（每个字节）分别按转码编码进行转换，实现文件的加密和解密。\n"
                          "3、太短的初始编码很容易被暴力破解，直接使用文本文件也存在枚举风险，使用较大的文本文件，“随机”修改文件某处的内容，会显著提高破解难度。\n"
