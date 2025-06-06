@@ -124,7 +124,7 @@ ctrl+shift+P打开全局终端，输入open keyboard shutcuts.打开键盘快捷
     
 }
 
-### 使用MSYS2-MinGw
+### 5 使用MSYS2-MinGw
 #### （1）MSYS2安装
 官网：https://www.msys2.org/
 
