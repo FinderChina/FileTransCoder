@@ -1,5 +1,6 @@
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -36,10 +37,13 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.security.CodeSource;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.ProtectionDomain;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -53,6 +57,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -121,6 +126,9 @@ import javax.swing.event.ChangeListener;
 import javax.swing.plaf.metal.MetalIconFactory;
 import javax.swing.table.DefaultTableModel;
 
+import org.apache.pdfbox.multipdf.PDFMergerUtility;
+import org.apache.pdfbox.multipdf.Splitter;
+import org.apache.pdfbox.pdmodel.PDDocument;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -210,6 +218,8 @@ public class FileManagerUI extends JFrame {
         JMenu toolMenu = new JMenu("工具");
         JMenuItem extractMenuItem = new JMenuItem("提取图片");
         extractMenuItem.setToolTipText("从PDF文件提取图片文件");
+        JMenuItem cutpdfMenuItem = new JMenuItem("截取文档");
+        cutpdfMenuItem.setToolTipText("从PDF文件截取部分页码内容");
         JMenuItem crawlingMenuItem = new JMenuItem("抓取文本");
         crawlingMenuItem.setToolTipText("从指定网址抓取文本文件");
         JMenuItem grabMenuItem = new JMenuItem("抓取图片");
@@ -224,6 +234,7 @@ public class FileManagerUI extends JFrame {
         transFileMenuItem.setToolTipText("任意文件和文本文件相互转存（格式互转）");
         
         toolMenu.add(extractMenuItem);
+        toolMenu.add(cutpdfMenuItem);
         toolMenu.add(crawlingMenuItem);
         toolMenu.add(grabMenuItem);
         toolMenu.add(croppingMenuItem);
@@ -232,7 +243,19 @@ public class FileManagerUI extends JFrame {
         toolMenu.add(binaryMenuItem);
         toolMenu.add(transFileMenuItem);
         menuBar.add(toolMenu);
-        
+
+        // 服务菜单
+        JMenu svrMenu = new JMenu("服务");
+        JMenuItem svrDeployMenuItem = new JMenuItem("部署");
+        JMenuItem svrCfgMenuItem = new JMenuItem("配置");
+        JMenuItem svrStartMenuItem = new JMenuItem("启动");
+        JMenuItem svrStopMenuItem = new JMenuItem("停止");
+        svrMenu.add(svrDeployMenuItem);
+        svrMenu.add(svrCfgMenuItem);
+        svrMenu.add(svrStartMenuItem);
+        svrMenu.add(svrStopMenuItem);
+        menuBar.add(svrMenu);
+
         // 帮助菜单
         JMenu helpMenu = new JMenu("帮助");
         JMenuItem manualMenuItem = new JMenuItem("提示");
@@ -461,11 +484,19 @@ public class FileManagerUI extends JFrame {
             }
         });
         
-        // 为工具菜单中的提取菜单项添加事件监听器
+        // 为工具菜单中的提取图片菜单项添加事件监听器
         extractMenuItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 extractOperation();
+            }
+        });
+
+        // 为工具菜单中的截取文档菜单项添加事件监听器
+        cutpdfMenuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cutpdfOperation();
             }
         });
 
@@ -512,7 +543,47 @@ public class FileManagerUI extends JFrame {
                 (new FileTxtInterTrans()).displayTransFileDialog();
             }
         });
-        
+
+        // 为服务菜单中的部署菜单项添加事件监听器
+        svrDeployMenuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                (new NginxSvr()).deploySvr();
+            }
+         });
+
+        // 为服务菜单中的配置菜单项添加事件监听器
+        svrCfgMenuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                (new NginxSvr()).showConfigDialog(FileManagerUI.this);
+            }
+         });
+
+        // 为服务菜单中的启动菜单项添加事件监听器
+        svrStartMenuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    (new NginxSvr()).start();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+         });
+
+        // 为服务菜单中的停止菜单项添加事件监听器
+        svrStopMenuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    (new NginxSvr()).stop();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+         });
+
         // 为帮助菜单中的提示菜单项添加事件监听器
         manualMenuItem.addActionListener(new ActionListener() {
             @Override
@@ -690,6 +761,151 @@ public class FileManagerUI extends JFrame {
             } catch (IOException e) {
                 e.printStackTrace();
             }  // */
+        }
+    }
+
+    // 解析页码范围字符串
+    private static List<Integer> parsePageRange(String rangeStr) {
+        List<Integer> pages = new ArrayList<>();
+        String[] parts = rangeStr.split(",");
+
+        for (String part : parts) {
+            part = part.trim();
+            if (part.isEmpty()) continue;
+
+            if (part.contains("-")) {
+                // 处理范围(如1-3)
+                String[] range = part.split("-");
+                if (range.length != 2) {
+                    throw new IllegalArgumentException("无效的范围格式: '" + part + "'. 正确格式如 '1-3'");
+                }
+                try {
+                    int start = Integer.parseInt(range[0].trim());
+                    int end = Integer.parseInt(range[1].trim());
+                    if (start > end) {
+                        throw new IllegalArgumentException("起始页码不能大于结束页码: '" + part + "'");
+                    }
+                    for (int i = start; i <= end; i++) {
+                        if (!pages.contains(i)) {
+                            pages.add(i);
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("无效的页码: '" + part + "'. 必须为数字");
+                }
+            } else {
+                // 处理单个页码
+                try {
+                    int page = Integer.parseInt(part);
+                    if (!pages.contains(page)) {
+                        pages.add(page);
+                    }
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("无效的页码: '" + part + "'. 必须为数字");
+                }
+            }
+        }
+
+        // 对页码进行排序
+        pages.sort(Integer::compareTo);
+        return pages;
+    }
+
+    public void cutpdfOperation() {
+        String pages = directoryTextField.getText();
+        if ("".equals(pages)) {
+            JOptionPane.showMessageDialog(this, "请先输入需要保存的页码范围(如: 1-3,5,7-9)。", "错误", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("选择截取的 pdf 文件");
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
+            @Override
+            public boolean accept(File f) {
+                return f.isDirectory() || f.getName().toLowerCase().endsWith(".pdf");
+            }
+
+            @Override
+            public String getDescription() {
+                return "PDF 文件 (*.pdf)";
+            }
+        });
+        int result = fileChooser.showOpenDialog(FileManagerUI.this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File pdf = fileChooser.getSelectedFile();
+
+            String outputFilePath = pdf.getParent() + "/extracted_pages.pdf"; // 输出文件路径
+            String extractResult = extractPages(pdf.getAbsolutePath(), outputFilePath, pages);
+            JOptionPane.showMessageDialog(this, "PDF文档截取完成：" + extractResult, "提示", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    // 提取PDF页面
+    public String extractPages(String inputFilePath, String outputFilePath,  String pageRange) {
+        // 解析页码范围
+        List<Integer> pagesToExtract;
+        try {
+            pagesToExtract = parsePageRange(pageRange);
+            if (pagesToExtract.isEmpty()) {
+                return "错误: 无效的页码范围 - 未指定任何有效页码。" + pageRange;
+            }
+        } catch (IllegalArgumentException e) {
+            return "错误: " + e.getMessage();
+        }
+
+        try (PDDocument document = org.apache.pdfbox.Loader.loadPDF(new File(inputFilePath))) {
+            int totalPages = document.getNumberOfPages();
+            
+            // 验证页码是否有效
+            for (int page : pagesToExtract) {
+                if (page < 1) {
+                    return "错误: 页码不能小于1";
+                }
+                if (page > totalPages) {
+                    return "错误: 页码 " + page + " 超出文档范围(文档共 " + totalPages + " 页)";
+                }
+            }
+
+            // 提取指定页面
+            Splitter splitter = new Splitter();
+            List<PDDocument> splitDocuments = new ArrayList<>();
+
+            for (int page : pagesToExtract) {
+                splitter.setStartPage(page);
+                splitter.setEndPage(page);
+                splitter.setSplitAtPage(1);
+                
+                List<PDDocument> singlePageDoc = splitter.split(document);
+                if (!singlePageDoc.isEmpty()) {
+                    splitDocuments.add(singlePageDoc.get(0));
+                }
+            }
+
+            if (splitDocuments.isEmpty()) {
+                return "错误: 未能提取到任何页面, 请检查页码范围是否正确。";
+            }
+
+            // 合并提取的页面
+            PDFMergerUtility merger = new PDFMergerUtility();
+            for (PDDocument splitDoc : splitDocuments) {
+                // Save the PDDocument to a temporary file
+                File tempFile = File.createTempFile("tempDoc", ".pdf");
+                splitDoc.save(tempFile);
+                splitDoc.close(); // Close the document after saving
+                merger.addSource(tempFile.getAbsolutePath());
+            }
+            merger.setDestinationFileName(outputFilePath);
+            merger.mergeDocuments(null);
+
+            // 关闭分割后的文档
+            for (PDDocument splitDoc : splitDocuments) {
+                splitDoc.close();
+            }
+            
+            return "成功: 提取的页面已保存到 " + outputFilePath + "。";
+        } catch (IOException e) {
+            return "错误: 处理PDF文件时出错 - " + e.getMessage();
         }
     }
 
@@ -1513,7 +1729,7 @@ public class FileManagerUI extends JFrame {
     }
 
     private void showAboutDialog() {
-        JOptionPane.showMessageDialog(this, "文件打包解压工具\n版本：1.0_20250428\n作者：estc@sina.com", "关于", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, "文件打包解压工具\n版本：1.0_20250610\n作者：estc@sina.com", "关于", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void saveConfig(boolean fileEncode, String fileEncoding, boolean fileContentEncode, String contentEncoding, boolean dynamicEncoding, String encodingType, int encodingLength, String lengthUnit, boolean unifiedSuffix, boolean newDirOnUnpack, boolean fixEncodeFlag) {
@@ -2999,7 +3215,494 @@ public class FileManagerUI extends JFrame {
         }
     }
 
+    /***** 网络服务配置  *****/
+    protected static class SvrConfig {
+        private String name;
+        private String path;
+        private boolean showFileList;
+        private boolean videoPlay;
+        
+        public SvrConfig(String name, String path, boolean showFileList, boolean videoPlay) {
+            this.name = name;
+            this.path = path;
+            this.showFileList = showFileList;
+            this.videoPlay = videoPlay;
+        }
+        
+        public String getName() { return name; }
+        public String getPath() { return path; }
+        public boolean isShowFileList() { return showFileList; }
+        public boolean isVideoPlay() { return videoPlay; }
+    }
 
+
+    /***** 网络服务工具  *****/
+    protected class NginxSvr {
+
+        public void deploySvr(){
+            if(getJarPath()) {
+                String zipPath = jarPath + "\\svr.jar";
+                String svrPath = jarPath + "\\..\\svr";
+                if(!unzipFile(zipPath, svrPath)){
+                    JOptionPane.showMessageDialog(null, "部署失败: \n" + zipPath + "\n" + svrPath, "错误", JOptionPane.ERROR_MESSAGE);
+                }else{
+                    JOptionPane.showMessageDialog(null, "部署成功: \n" + zipPath + "\n" + svrPath, "信息", JOptionPane.INFORMATION_MESSAGE);
+                }
+            }
+        }
+
+        public void start() throws Exception  {
+            if(getJarPath()) {
+                String exePath = jarPath + "\\..\\svr\\nginx.exe";
+                int option = JOptionPane.showConfirmDialog(null, "确认启动网络服务？\n" + exePath, "确认", JOptionPane.YES_NO_OPTION);
+                    if (option == JOptionPane.YES_OPTION) {
+                    killProcess("nginx.exe"); // 先杀掉可能存在的nginx进程
+                    boolean success = executeProgram(exePath); // 启动nginx服务
+                    if(success){
+                        option = JOptionPane.showConfirmDialog(null, "是否打开浏览器访问？", "确认", JOptionPane.YES_NO_OPTION);
+                        if(option == JOptionPane.YES_OPTION) {
+                            openUrl("http://localhost");
+                        }
+                    }
+                }
+            }
+        }
+
+        public void stop() throws Exception   {
+            int option = JOptionPane.showConfirmDialog(null, "确认停止网络服务？", "确认", JOptionPane.YES_NO_OPTION);
+            if (option == JOptionPane.YES_OPTION) {
+                killProcess("nginx.exe"); 
+                JOptionPane.showMessageDialog(null, "已停止。" , "信息", JOptionPane.INFORMATION_MESSAGE);
+            }
+        }
+
+        private boolean getJarPath() {
+            try {
+                ProtectionDomain protectionDomain = NginxSvr.class.getProtectionDomain();
+                CodeSource codeSource = protectionDomain.getCodeSource();
+                URL jarUrl = codeSource.getLocation();
+                File jarFile = new File(jarUrl.toURI());
+                jarPath = jarFile.getParentFile().getAbsolutePath(); // 返回 JAR 所在目录
+
+                // 检查 lib/svr.jar 是否存在
+                String zipPath = (jarPath==null?"":jarPath) + "\\svr.jar";
+                File zip = new File(zipPath);
+                while (!zip.exists()) {
+                    // 创建服务目录选择器
+                    JFileChooser chooser = new JFileChooser();
+                    chooser.setDialogTitle("请确认服务文件“svr.jar”所在路径：");
+                    if(jarPath!=null){
+                        File defaultDir = new File(jarPath);
+                        chooser.setCurrentDirectory(defaultDir);
+                    }
+                    chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+                    
+                    // 显示对话框
+                    int result = chooser.showDialog(null, "确认");
+                    
+                    if (result == JFileChooser.APPROVE_OPTION) {
+                        File selectedDir = chooser.getSelectedFile();
+                        jarPath = selectedDir.getAbsolutePath();
+                        zipPath = (jarPath==null?"":jarPath) + "\\svr.jar";
+                        zip = new File(zipPath);
+                    } else {
+                        JOptionPane.showMessageDialog(null, "未确认服务目录，取消后续处理。" , "信息", JOptionPane.INFORMATION_MESSAGE);
+                        return false;
+                    }
+                }
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        public void showConfigDialog(JFrame parent) {
+            if(getJarPath()) {
+                String cfgFile = jarPath + "\\..\\svr.cfg";
+                String tmlFile = jarPath + "\\..\\svr\\conf\\cfg.tpl";
+                String outFile = jarPath + "\\..\\svr\\conf\\nginx.conf";
+                loadConfigurations(cfgFile);
+            
+                JDialog dialog = new JDialog(parent, "服务访问名称配置管理", true);
+                dialog.setSize(800, 600);
+                dialog.setLayout(new BorderLayout());
+                
+                // 表格模型
+                DefaultTableModel model = new DefaultTableModel(new Object[]{"访问名称", "目录路径", "显示文件列表", "视频播放"}, 0) {
+                    @Override
+                    public Class<?> getColumnClass(int columnIndex) {
+                        return columnIndex == 2 || columnIndex == 3 ? Boolean.class : String.class;
+                    }
+                    
+                    @Override
+                    public boolean isCellEditable(int row, int column) {
+                        return true;
+                    }
+                };
+                
+                // 填充表格数据
+                for (SvrConfig config : configurations) {
+                    model.addRow(new Object[]{config.getName(), config.getPath(), config.isShowFileList(), config.isVideoPlay()});
+                }
+                
+                JTable table = new JTable(model);
+                table.setRowHeight(30);
+                table.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+                
+                // 设置列宽比例为2:4:1:1
+                int totalWidth = table.getWidth();  //此时组件尚未被添加到可见容器中，或者尚未完成布局计算，getWidth()返回0
+                totalWidth = Math.max(totalWidth, 800); // 确保总宽度至少为800
+                table.getColumnModel().getColumn(0).setPreferredWidth((int)(totalWidth * 0.25)); // 访问名称 25%
+                table.getColumnModel().getColumn(1).setPreferredWidth((int)(totalWidth * 0.50)); // 目录路径 50%
+                table.getColumnModel().getColumn(2).setPreferredWidth((int)(totalWidth * 0.125)); // 显示文件列表 12.5%
+                table.getColumnModel().getColumn(3).setPreferredWidth((int)(totalWidth * 0.125)); // 视频播放 12.5%
+                
+                // 为目录路径列设置自定义编辑器
+                table.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(new JTextField()) {
+                    private JTextField textField;
+                    
+                    @Override
+                    public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+                        JPanel panel = new JPanel(new BorderLayout());
+                        textField = new JTextField(value != null ? value.toString() : "");
+                        textField.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+                        
+                        JButton browseButton = new JButton("...");
+                        browseButton.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+                        
+                        browseButton.addActionListener(e -> {
+                            JFileChooser chooser = new JFileChooser();
+                            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+                            if (chooser.showOpenDialog(dialog) == JFileChooser.APPROVE_OPTION) {
+                                String selectedPath = chooser.getSelectedFile().getAbsolutePath();
+                                textField.setText(selectedPath);
+                                table.setValueAt(selectedPath, row, column);
+                            }
+                        });
+                        
+                        panel.add(textField, BorderLayout.CENTER);
+                        panel.add(browseButton, BorderLayout.EAST);
+                        
+                        return panel;
+                    }
+                    
+                    @Override
+                    public Object getCellEditorValue() {
+                        return textField != null ? textField.getText() : "";
+                    }
+                });
+                
+                // 为布尔值列设置复选框编辑器
+                table.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(new JCheckBox()) {
+                    @Override
+                    public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+                        JCheckBox checkBox = (JCheckBox) super.getTableCellEditorComponent(table, value, isSelected, row, column);
+                        checkBox.setHorizontalAlignment(SwingConstants.CENTER);
+                        return checkBox;
+                    }
+                });
+                
+                table.getColumnModel().getColumn(3).setCellEditor(new DefaultCellEditor(new JCheckBox()) {
+                    @Override
+                    public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+                        JCheckBox checkBox = (JCheckBox) super.getTableCellEditorComponent(table, value, isSelected, row, column);
+                        checkBox.setHorizontalAlignment(SwingConstants.CENTER);
+                        return checkBox;
+                    }
+                });
+                
+                JScrollPane scrollPane = new JScrollPane(table);
+                
+                // 按钮面板
+                JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+                
+                JButton addButton = new JButton("添加");
+                JButton deleteButton = new JButton("删除");
+                JButton saveButton = new JButton("保存");  // 改为保存按钮
+                JButton applyButton = new JButton("应用");
+                JButton openButton = new JButton("打开");
+                JButton closeButton = new JButton("关闭");
+                
+                Font buttonFont = new Font("微软雅黑", Font.PLAIN, 14);
+                addButton.setFont(buttonFont);
+                deleteButton.setFont(buttonFont);
+                saveButton.setFont(buttonFont);
+                applyButton.setFont(buttonFont);
+                openButton.setFont(buttonFont);
+                closeButton.setFont(buttonFont);
+                
+                buttonPanel.add(addButton);
+                buttonPanel.add(deleteButton);
+                buttonPanel.add(saveButton);
+                buttonPanel.add(applyButton);
+                buttonPanel.add(openButton);
+                buttonPanel.add(closeButton);
+                
+                // 添加事件监听器
+                addButton.addActionListener(e -> {
+                    model.addRow(new Object[]{"path" + (table.getRowCount()+1), "", false, false});
+                    table.editCellAt(model.getRowCount() - 1, 0);
+                    table.getSelectionModel().setSelectionInterval(model.getRowCount() - 1, model.getRowCount() - 1);
+                });
+                
+                deleteButton.addActionListener(e -> {
+                    int selectedRow = table.getSelectedRow();
+                    if (selectedRow == -1) {
+                        JOptionPane.showMessageDialog(dialog, "请选择要删除的行", "提示", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                    
+                    int confirm = JOptionPane.showConfirmDialog(dialog, "确定要删除此配置吗?", "确认", JOptionPane.YES_NO_OPTION);
+                    if (confirm == JOptionPane.YES_OPTION) {
+                        model.removeRow(selectedRow);
+                    }
+                });
+                
+                saveButton.addActionListener(e -> {
+                    saveConfigurations(model, cfgFile);  // 保存到指定配置文件
+                    JOptionPane.showMessageDialog(null, "保存配置完成：\n" + cfgFile, "提示", JOptionPane.INFORMATION_MESSAGE);
+                });
+                
+                applyButton.addActionListener(e -> {
+                    saveConfigurations(model, cfgFile);  // 应用前先保存
+                    applyConfigurations(tmlFile, outFile);  // 应用配置
+                    JOptionPane.showMessageDialog(null, "应用配置完成: \n" + tmlFile + "\n" + outFile, "提示", JOptionPane.INFORMATION_MESSAGE);
+                });
+
+                openButton.addActionListener(e -> {
+                    int selectedRow = table.getSelectedRow();
+                    if (selectedRow == -1) {
+                        JOptionPane.showMessageDialog(dialog, "请选择要打开的行", "提示", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                    String name = (String) model.getValueAt(selectedRow, 0);
+                    try {
+                        openUrl("http://localhost/" + name + "/");
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                });
+                
+                closeButton.addActionListener(e -> dialog.dispose());
+                
+                dialog.add(scrollPane, BorderLayout.CENTER);
+                dialog.add(buttonPanel, BorderLayout.SOUTH);
+                dialog.setLocationRelativeTo(parent);
+                dialog.setVisible(true);
+            }
+        }
+
+        private void applyConfigurations(String tmlFile, String outFile) {
+            try {
+                // 读取模板文件
+                String templateContent = new String(Files.readAllBytes(Paths.get(tmlFile)),StandardCharsets.UTF_8);
+                
+                // 为配置生成内容并替换模板
+                String configContent = "";
+                for (SvrConfig config : configurations) {
+                    configContent += generateConfigContent(config);
+                }
+                templateContent = templateContent.replace("########", configContent);
+                
+                // 保存结果到outFile文件
+                Files.write(Paths.get(outFile), templateContent.getBytes(StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(null, "应用配置失败: " + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+
+        private String generateConfigContent(SvrConfig config) {
+            return String.format(
+                "        location /%s/ {\r\n" + 
+                "            alias   %s/;\r\n" + 
+                "            index  index.html index.htm;\r\n" + 
+                "            autoindex %s;\r\n" + 
+                "            autoindex_exact_size off;\r\n" + 
+                "            autoindex_localtime on;\r\n" + 
+                "%s" +  // 这里放置视频播放配置
+                "        }\r\n\r\n",
+                config.getName(),
+                config.getPath().replace("\\", "/"), // 替换路径中的反斜杠为正斜杠
+                config.isShowFileList() ? "on" : "off",
+                config.isVideoPlay() ? "            add_header Accept-Ranges bytes; # 支持范围请求\r\n" : ""
+            );
+        }
+
+        private void saveConfigurations(DefaultTableModel model, String cfgFile) {
+            // 先清空现有配置
+            configurations.clear();
+            
+            // 从表格模型中读取所有配置
+            for (int i = 0; i < model.getRowCount(); i++) {
+                String name = (String) model.getValueAt(i, 0);
+                String path = (String) model.getValueAt(i, 1);
+                boolean showList = (Boolean) model.getValueAt(i, 2);
+                boolean videoPlay = (Boolean) model.getValueAt(i, 3);
+                
+                configurations.add(new SvrConfig(name, path, showList, videoPlay));
+            }
+            
+            // 保存到Properties文件
+            Properties props = new Properties();
+            props.setProperty("count", String.valueOf(configurations.size()));
+            
+            for (int i = 0; i < configurations.size(); i++) {
+                SvrConfig config = configurations.get(i);
+                props.setProperty("config." + (i+1) + ".name", config.getName());
+                props.setProperty("config." + (i+1) + ".path", config.getPath());
+                props.setProperty("config." + (i+1) + ".showList", String.valueOf(config.isShowFileList()));
+                props.setProperty("config." + (i+1) + ".videoPlay", String.valueOf(config.isVideoPlay()));
+            }
+            
+            try (OutputStream output = new FileOutputStream(cfgFile)) {
+                props.store(output, "Configuration Properties");
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(null, "保存配置失败: " + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    
+        private void loadConfigurations(String cfgFile) {
+            configurations.clear();
+            Properties props = new Properties();
+            
+            try (InputStream input = new FileInputStream(cfgFile)) {
+                props.load(input);
+                
+                int count = Integer.parseInt(props.getProperty("count", "0"));
+                for (int i = 1; i <= count; i++) {
+                    String name = props.getProperty("config." + i + ".name");
+                    String path = props.getProperty("config." + i + ".path");
+                    boolean showList = Boolean.parseBoolean(props.getProperty("config." + i + ".showList"));
+                    boolean videoPlay = Boolean.parseBoolean(props.getProperty("config." + i + ".videoPlay"));
+                    
+                    if (name != null && path != null) {
+                        configurations.add(new SvrConfig(name, path, showList, videoPlay));
+                    }
+                }
+            } catch (IOException e) {
+                // 如果文件不存在，忽略错误
+            }
+        }
+
+        private boolean unzipFile(String zipFilePath, String destDirectory) {
+            File destDir = new File(destDirectory);
+            if (!destDir.exists()) {
+                destDir.mkdirs();
+            }
+            
+            try (ZipFile zipFile = new ZipFile(zipFilePath)) {
+                Enumeration<? extends ZipEntry> entries = zipFile.entries();
+                
+                while (entries.hasMoreElements()) {
+                    ZipEntry entry = entries.nextElement();
+                    File entryDestination = new File(destDir, entry.getName());
+                    
+                    if (entry.isDirectory()) {
+                        entryDestination.mkdirs();
+                    } else {
+                        entryDestination.getParentFile().mkdirs();
+                        
+                        try (InputStream in = zipFile.getInputStream(entry);
+                             OutputStream out = new FileOutputStream(entryDestination)) {
+                            byte[] buffer = new byte[1024];
+                            int length;
+                            while ((length = in.read(buffer)) > 0) {
+                                out.write(buffer, 0, length);
+                            }
+                        }
+                    }
+                }
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        private void killProcess(String processName) throws IOException, InterruptedException {
+            if (processName == null || processName.trim().isEmpty()) return;
+            
+            ProcessBuilder builder = new ProcessBuilder("taskkill", "/F", "/IM", processName);
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
+            process.waitFor();
+        }
+
+        // 使用了多线程来异步读取进程的输出流和错误流，避免阻塞
+        private void printProcessOutput(Process process) throws IOException {
+            ExecutorService executor = Executors.newFixedThreadPool(2);
+        
+            // 读取输出流
+            executor.submit(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        System.out.println("[Nginx] " + line);
+                    }
+                } catch (IOException e) {
+                    System.err.println("输出流读取错误: " + e.getMessage());
+                }
+            });
+            
+            // 读取错误流
+            executor.submit(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        System.err.println("[Nginx Error] " + line);
+                    }
+                } catch (IOException e) {
+                    System.err.println("错误流读取错误: " + e.getMessage());
+                }
+            });
+            
+            executor.shutdown();
+        }
+    
+        private boolean executeProgram(String exePath) throws Exception {
+            // 检查文件是否存在
+            File exeFile = new File(exePath);
+            if (!exeFile.exists()) {
+                JOptionPane.showMessageDialog(null, "文件不存在: " + exePath, "错误", JOptionPane.ERROR_MESSAGE);
+            }
+            
+            // 获取所在目录
+            String exeDir = exeFile.getParent();
+            
+            // 使用ProcessBuilder启动
+            ProcessBuilder processBuilder = new ProcessBuilder();
+            processBuilder.command("cmd.exe", "/c", "start", "nginx.exe");
+            processBuilder.directory(new File(exeDir));
+            
+            // 合并错误流和输出流
+            processBuilder.redirectErrorStream(true);
+            Process process = processBuilder.start();
+            
+            // 读取输出
+            //printProcessOutput(process);
+            
+            // 等待启动完成
+            int exitCode = process.waitFor();
+            System.out.println("Nginx启动完成，退出码: " + exitCode);
+            if (exitCode == 0) {
+                return true;
+            } else {
+                JOptionPane.showMessageDialog(null, "Nginx启动失败，退出码: " + exitCode, "错误", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+        }
+
+        private void openUrl(String url) throws IOException{
+            ProcessBuilder pb = new ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", url);
+            pb.start();
+        }
+
+        private List<SvrConfig> configurations = new ArrayList<>();
+        private String jarPath = "";  // 用于存储当前JAR文件的路径
+    }
 
     /***** 网页数据抓取工具  *****/
     protected class WebScraper {
