@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Class-Path: commons-logging-1.2.jar dom4j-2.1.3.jar gson-2.9.0.jar jsoup-1.18.3.jar jxl.jar pdfbox-app-3.0.5.jar selenium-server-4.10.0.jar xmindjbehaveplugin-0.8.jar
+Main-Class: FileManagerUI
+
